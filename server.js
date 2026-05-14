@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const mysql = require('mysql2/promise');
@@ -30,8 +31,13 @@ const pool = mysql.createPool({
 
 async function initDb() {
   try {
-    await pool.query('CREATE DATABASE IF NOT EXISTS cashiepie_db');
-    await pool.query('USE cashiepie_db');
+    // Logic: Skip CREATE DATABASE on shared hosting (permissions)
+    if (process.env.DB_HOST && process.env.DB_HOST !== 'localhost') {
+      await pool.query(`USE ${process.env.DB_NAME}`);
+    } else {
+      await pool.query('CREATE DATABASE IF NOT EXISTS cashiepie_db');
+      await pool.query('USE cashiepie_db');
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
