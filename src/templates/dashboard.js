@@ -78,6 +78,7 @@ function dashboardTemplate(role) {
         <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
           <h3 class="section-title" style="padding:1.5rem 1.5rem 0 1.5rem;"><i class="fas fa-history"></i> Global History</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="adminGlobalTxList"></tbody></table></div>
+          <div style="padding:1rem; text-align:center;"><button class="toggle-link" style="font-size:0.7rem;" onclick="loadMoreHistory()">See More History...</button></div>
         </div>
 
         <div class="glass-card" style="padding:1.5rem;">
@@ -182,6 +183,8 @@ function dashboardTemplate(role) {
     </div>
 
     <script>
+      let historyLimit = 50;
+
       function showSnackbar(msg, type) {
         const sb = document.getElementById("snackbar");
         sb.innerHTML = \`<i class="fas \${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> \${msg}\`;
@@ -275,10 +278,15 @@ function dashboardTemplate(role) {
         const data = await res.json(); if(data.success) loadData();
       }
 
+      function loadMoreHistory() {
+        historyLimit += 50;
+        loadData();
+      }
+
       async function loadData() {
         try {
           if('${role}' === 'admin') {
-            const res = await fetch('/api/admin/data');
+            const res = await fetch(\`/api/admin/data?limit=\${historyLimit}\`);
             const data = await res.json();
             document.getElementById('adminStats').innerHTML = \`
               <div><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div style="font-size:1.5rem; font-weight:900;">$\${data.stats.totalBal.toLocaleString()}</div></div>
@@ -291,6 +299,8 @@ function dashboardTemplate(role) {
             });
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             data.settings.forEach(s => {
+              // HIDE ETH and USDT from Admin settings
+              if(s.key_name === 'eth_address' || s.key_name === 'usdt_trc20') return;
               settingsDiv.innerHTML += \`<div class="settings-row"><div><strong>\${s.key_name.toUpperCase()}</strong><br><small style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="const v=prompt('New value:', '\${s.value}'); if(v) updateSetting('\${s.key_name}', v)">EDIT</button></div>\`;
             });
             const userTbody = document.getElementById('adminUserList'); userTbody.innerHTML = '';
@@ -298,10 +308,7 @@ function dashboardTemplate(role) {
               userTbody.innerHTML += \`<tr><td><strong>\${u.name}</strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem; cursor:pointer;"><i class="fas fa-edit"></i></button></td></tr>\`;
             });
             
-            // New: Global History for Admin
             const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
-            // We'll reuse the pending list or fetch all in a real app, for now let's assume global history is part of data
-            // (Note: I need to update server.js to return global history)
             if(data.globalHistory) {
               data.globalHistory.forEach(tx => {
                 globalHistTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
@@ -310,7 +317,12 @@ function dashboardTemplate(role) {
 
             const ticketDiv = document.getElementById('adminTicketList'); ticketDiv.innerHTML = '';
             data.tickets.forEach(tk => {
-              ticketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.userName}</strong>: \${tk.subject}<br><small>\${tk.message}</small><br><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem; margin-top:8px;" onclick="replyTicket('\${tk.id}')">REPLY</button></div>\`;
+              ticketDiv.innerHTML += \`
+                <div class="ticket-box">
+                  <strong>\${tk.userName}</strong>: \${tk.subject}<br>
+                  <small>\${tk.message}</small><br>
+                  \${tk.reply ? \`<div style="background:white; padding:10px; border-radius:12px; margin-top:10px; font-size:0.8rem; border:1px solid #eee;"><strong>Your Reply:</strong> \${tk.reply}</div>\` : \`<button class="btn-grad" style="padding:6px 12px; font-size:0.65rem; margin-top:8px;" onclick="replyTicket('\${tk.id}')">REPLY</button>\`}
+                </div>\`;
             });
           } else {
             const res = await fetch('/api/user/data');
@@ -324,7 +336,6 @@ function dashboardTemplate(role) {
             document.getElementById('userRefCode').innerText = data.user.referral_code;
             document.getElementById('wdInfo').innerText = \`Min: $\${data.settings.min_withdrawal} • Fee: \${data.settings.withdrawal_fee_percent}%\`;
             
-            // Only BTC Address
             const cryptoList = document.getElementById('cryptoList'); cryptoList.innerHTML = \`
               <div class="crypto-box"><p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BITCOIN (BTC) ADDRESS</p><div style="display:flex; align-items:center; gap:10px;"><code id="btc_addr" style="font-size:0.7rem; word-break:break-all; font-weight:700;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC Address')" style="background:var(--dark); color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; font-size:0.7rem;"><i class="fas fa-copy"></i></button></div></div>
             \`;
