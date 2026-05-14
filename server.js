@@ -31,8 +31,10 @@ const pool = mysql.createPool({
 
 async function initDb() {
   try {
+    console.log('--- DATABASE SYNC START ---');
     // Logic: Skip CREATE DATABASE on shared hosting (permissions)
     if (process.env.DB_HOST && process.env.DB_HOST !== 'localhost') {
+      console.log(`Connecting to Remote DB: ${process.env.DB_HOST}...`);
       await pool.query(`USE ${process.env.DB_NAME}`);
     } else {
       await pool.query('CREATE DATABASE IF NOT EXISTS cashiepie_db');
@@ -126,13 +128,16 @@ async function initDb() {
     if (admins.length === 0) {
       await pool.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ("@admin", "admin123", "Platform Admin", "admin", "ADMIN")');
     } else {
-      // Logic: Ensure password is updated to the new 8-char version
       await pool.query('UPDATE users SET password = "admin123" WHERE username = "@admin"');
     }
 
+    console.log('--- DATABASE TABLES VERIFIED ---');
     console.log('CashiePie Database Ready.');
     setInterval(processMaturity, 10 * 60 * 1000);
-  } catch (err) { console.error('DB Init Error:', err); }
+  } catch (err) { 
+    console.error('CRITICAL DATABASE ERROR:', err.message); 
+    console.error('Check your Environment Variables and Remote MySQL settings.');
+  }
 }
 
 async function processMaturity() {
