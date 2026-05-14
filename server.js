@@ -134,7 +134,12 @@ async function initDb() {
 
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
       if (admins.length === 0) {
+        console.log('Creating default admin account...');
         await client.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ($1, $2, $3, $4, $5)', ['@admin', 'admin123', 'Platform Admin', 'admin', 'ADMIN']);
+        console.log('Admin account created successfully.');
+      } else {
+        console.log('Admin account verified.');
+        await client.query('UPDATE users SET password = $1 WHERE username = $2', ['admin123', '@admin']);
       }
 
       console.log('--- DATABASE TABLES VERIFIED ---');
