@@ -75,6 +75,11 @@ function dashboardTemplate(role) {
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>Investor</th><th>Balance</th><th>Principal</th><th>Action</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
         </div>
 
+        <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
+          <h3 class="section-title" style="padding:1.5rem 1.5rem 0 1.5rem;"><i class="fas fa-history"></i> Global History</h3>
+          <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="adminGlobalTxList"></tbody></table></div>
+        </div>
+
         <div class="glass-card" style="padding:1.5rem;">
           <h3 class="section-title"><i class="fas fa-headset"></i> Support Queue</h3>
           <div id="adminTicketList"></div>
@@ -146,7 +151,7 @@ function dashboardTemplate(role) {
         <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
       </div>
       <div id="cryptoList"></div>
-      <p style="color:var(--text-muted); font-weight:600; margin-bottom:1.5rem; font-size:0.8rem;">Send crypto to any address above, then enter the USD equivalent sent below.</p>
+      <p style="color:var(--text-muted); font-weight:600; margin-bottom:1.5rem; font-size:0.8rem;">Send crypto to the address above, then enter the USD equivalent sent below.</p>
       <input type="number" id="depAmt" class="panel-input" placeholder="Amount in USD">
       <button class="btn-grad" style="width:100%;" onclick="submitTx('deposit', 'depAmt')">Confirm Notification <i class="fas fa-check"></i></button>
     </div>
@@ -292,6 +297,17 @@ function dashboardTemplate(role) {
             data.users.forEach(u => {
               userTbody.innerHTML += \`<tr><td><strong>\${u.name}</strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem; cursor:pointer;"><i class="fas fa-edit"></i></button></td></tr>\`;
             });
+            
+            // New: Global History for Admin
+            const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
+            // We'll reuse the pending list or fetch all in a real app, for now let's assume global history is part of data
+            // (Note: I need to update server.js to return global history)
+            if(data.globalHistory) {
+              data.globalHistory.forEach(tx => {
+                globalHistTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
+              });
+            }
+
             const ticketDiv = document.getElementById('adminTicketList'); ticketDiv.innerHTML = '';
             data.tickets.forEach(tk => {
               ticketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.userName}</strong>: \${tk.subject}<br><small>\${tk.message}</small><br><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem; margin-top:8px;" onclick="replyTicket('\${tk.id}')">REPLY</button></div>\`;
@@ -307,11 +323,12 @@ function dashboardTemplate(role) {
             document.getElementById('userProf').innerText = '$' + data.user.profit.toLocaleString();
             document.getElementById('userRefCode').innerText = data.user.referral_code;
             document.getElementById('wdInfo').innerText = \`Min: $\${data.settings.min_withdrawal} • Fee: \${data.settings.withdrawal_fee_percent}%\`;
-            const cryptoList = document.getElementById('cryptoList'); cryptoList.innerHTML = '';
-            ['btc_address', 'eth_address', 'usdt_trc20'].forEach(c => {
-              const symbol = c.split('_')[0].toUpperCase();
-              cryptoList.innerHTML += \`<div class="crypto-box"><p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">\${symbol} ADDRESS</p><div style="display:flex; align-items:center; gap:10px;"><code id="\${c}" style="font-size:0.7rem; word-break:break-all; font-weight:700;">\${data.settings[c]}</code><button onclick="copyText('\${c}', '\${symbol}')" style="background:var(--dark); color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; font-size:0.7rem;"><i class="fas fa-copy"></i></button></div></div>\`;
-            });
+            
+            // Only BTC Address
+            const cryptoList = document.getElementById('cryptoList'); cryptoList.innerHTML = \`
+              <div class="crypto-box"><p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BITCOIN (BTC) ADDRESS</p><div style="display:flex; align-items:center; gap:10px;"><code id="btc_addr" style="font-size:0.7rem; word-break:break-all; font-weight:700;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC Address')" style="background:var(--dark); color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; font-size:0.7rem;"><i class="fas fa-copy"></i></button></div></div>
+            \`;
+
             const supportLinks = document.getElementById('supportLinks'); supportLinks.innerHTML = \`
               <a href="\${data.settings.telegram_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#229ED9;"><i class="fab fa-telegram"></i> Telegram</a>
               <a href="\${data.settings.whatsapp_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#25D366;"><i class="fab fa-whatsapp"></i> WhatsApp</a>

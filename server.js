@@ -18,19 +18,14 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Persistent sessions in Postgres
 app.use(session({
-  store: new pgSession({
-    pool: pool,
-    tableName: 'session'
-  }),
+  store: new pgSession({ pool: pool, tableName: 'session' }),
   secret: process.env.SESSION_SECRET || 'cashiepie_pro_secure_session_2026',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
+  cookie: { secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
 
-// Add this for production behind Vercel proxy
 app.set('trust proxy', 1);
 
 async function initDb() {
@@ -38,16 +33,16 @@ async function initDb() {
     console.log('--- VERCEL POSTGRES SYNC START ---');
     const client = await pool.connect();
     try {
-      // Session table for connect-pg-simple
       await client.query(`
         CREATE TABLE IF NOT EXISTS "session" (
           "sid" varchar NOT NULL COLLATE "default",
           "sess" json NOT NULL,
           "expire" timestamp(6) NOT NULL
         ) WITH (OIDS=FALSE);
+        ALTER TABLE "session" DROP CONSTRAINT IF EXISTS "session_pkey";
         ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
         CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
-      `).catch(() => {/* Ignore if constraints exist */});
+      `).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS users (
@@ -120,8 +115,6 @@ async function initDb() {
         ['referral_bonus_percent', '10'],
         ['withdrawal_fee_percent', '2'],
         ['btc_address', 'TUKfCbvVxAjmXLqTyzxT6TjvBWAEckou9s'],
-        ['eth_address', '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'],
-        ['usdt_trc20', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'],
         ['support_email', 'support@cashiepie.com'],
         ['telegram_link', 'https://t.me/cashiepie'],
         ['whatsapp_link', 'https://wa.me/123456789'],
@@ -134,23 +127,17 @@ async function initDb() {
 
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
       if (admins.length === 0) {
-        console.log('Creating default admin account...');
         await client.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ($1, $2, $3, $4, $5)', ['@admin', 'admin123', 'Platform Admin', 'admin', 'ADMIN']);
-        console.log('Admin account created successfully.');
       } else {
-        console.log('Admin account verified.');
         await client.query('UPDATE users SET password = $1 WHERE username = $2', ['admin123', '@admin']);
       }
 
       console.log('--- DATABASE TABLES VERIFIED ---');
-      console.log('CashiePie Database Ready.');
     } finally {
       client.release();
     }
     setInterval(processMaturity, 10 * 60 * 1000);
-  } catch (err) { 
-    console.error('CRITICAL DATABASE ERROR:', err.message); 
-  }
+  } catch (err) { console.error('CRITICAL DATABASE ERROR:', err.message); }
 }
 
 async function processMaturity() {
@@ -167,10 +154,8 @@ async function processMaturity() {
 initDb();
 
 app.get('/', async (req, res) => {
-  if (req.session.userId) {
-    res.send(dashboardTemplate(req.session.role));
-  } else {
-    // Fetch settings for the login page (like WhatsApp link)
+  if (req.session.userId) res.send(dashboardTemplate(req.session.role));
+  else {
     const { rows } = await pool.query("SELECT value FROM settings WHERE key_name = 'whatsapp_link'");
     const whatsapp = rows[0]?.value || '123456';
     res.send(loginTemplate(whatsapp));
@@ -185,10 +170,7 @@ app.post('/api/login', async (req, res) => {
       if (rows[0].status === 'Suspended') return res.json({ success: false, message: 'Account Suspended' });
       req.session.userId = rows[0].id;
       req.session.role = rows[0].role;
-      req.session.save((err) => {
-        if (err) res.status(500).json({ error: 'Session save error' });
-        else res.json({ success: true });
-      });
+      req.session.save(() => res.json({ success: true }));
     } else res.json({ success: false, message: 'Invalid credentials' });
   } catch (err) { res.status(500).json({ error: 'DB Error' }); }
 });
@@ -196,14 +178,8 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   const { username, password, confirmPassword, name, ref } = req.body;
   const finalUsername = username.startsWith('@') ? username : `@${username}`;
-  const usernameRegex = /^@[a-zA-Z0-9_]+$/;
-
-  if (!usernameRegex.test(finalUsername)) return res.json({ success: false, message: 'Usernames only allow text, numbers, and underscore.' });
-  if (password.length < 6) return res.json({ success: false, message: 'Password must be at least 6 characters.' });
-  if (password !== confirmPassword) return res.json({ success: false, message: 'Passwords do not match.' });
-
-  const refCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   try {
+    const refCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     await pool.query('INSERT INTO users (username, password, name, referral_code, referred_by) VALUES ($1, $2, $3, $4, $5)', [finalUsername, password, name, refCode, ref || null]);
     res.json({ success: true, message: 'Registration successful' });
   } catch (err) { res.json({ success: false, message: 'Username already taken' }); }
@@ -214,7 +190,7 @@ app.post('/api/logout', (req, res) => { req.session.destroy(() => res.json({ suc
 app.post('/api/deposit', checkAuth, async (req, res) => {
   const { amount } = req.body;
   const { rows: s } = await pool.query("SELECT value FROM settings WHERE key_name = 'min_deposit'");
-  if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Minimum deposit is $${s[0].value}` });
+  if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Min deposit is $${s[0].value}` });
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Deposit', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Deposit request sent' });
 });
@@ -222,12 +198,9 @@ app.post('/api/deposit', checkAuth, async (req, res) => {
 app.post('/api/withdraw', checkAuth, async (req, res) => {
   const { amount } = req.body;
   const { rows: s } = await pool.query("SELECT value FROM settings WHERE key_name = 'min_withdrawal'");
-  if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Minimum withdrawal is $${s[0].value}` });
-
+  if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Min withdrawal is $${s[0].value}` });
   const { rows: u } = await pool.query('SELECT balance, profit FROM users WHERE id = $1', [req.session.userId]);
-  const total = parseFloat(u[0].balance) + parseFloat(u[0].profit);
-  if (total < amount) return res.json({ success: false, message: 'Insufficient funds' });
-
+  if ((parseFloat(u[0].balance) + parseFloat(u[0].profit)) < amount) return res.json({ success: false, message: 'Insufficient funds' });
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Withdrawal', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Withdrawal request sent' });
 });
@@ -236,7 +209,6 @@ app.post('/api/plan/buy', checkAuth, async (req, res) => {
   const { planName, amount, roi, days } = req.body;
   const { rows: u } = await pool.query('SELECT balance FROM users WHERE id = $1', [req.session.userId]);
   if (parseFloat(u[0].balance) < amount) return res.json({ success: false, message: 'Insufficient balance' });
-  
   const endDate = new Date(); endDate.setDate(endDate.getDate() + days);
   await pool.query('UPDATE users SET balance = balance - $1, investment = investment + $2 WHERE id = $3', [amount, amount, req.session.userId]);
   await pool.query('INSERT INTO active_plans (user_id, plan_name, amount, roi, end_date) VALUES ($1, $2, $3, $4, $5)', [req.session.userId, planName, amount, roi, endDate]);
@@ -252,10 +224,8 @@ app.post('/api/ticket/create', checkAuth, async (req, res) => {
 app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
   const { txId, action } = req.body;
   const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE id = $1', [txId]);
-  if (txs.length === 0) return res.json({ success: false });
+  if (txs.length === 0 || txs[0].status !== 'Pending') return res.json({ success: false });
   const tx = txs[0];
-  if (tx.status !== 'Pending') return res.json({ success: false });
-
   if (action === 'Approved') {
     if (tx.type === 'Deposit') {
       await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
@@ -267,8 +237,7 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
       }
     } else {
       const { rows: u } = await pool.query('SELECT balance, profit FROM users WHERE id = $1', [tx.user_id]);
-      let rem = parseFloat(tx.amount);
-      let p = parseFloat(u[0].profit), b = parseFloat(u[0].balance);
+      let rem = parseFloat(tx.amount); let p = parseFloat(u[0].profit), b = parseFloat(u[0].balance);
       if (p >= rem) p -= rem; else { rem -= p; p = 0; b -= rem; }
       await pool.query('UPDATE users SET balance = $1, profit = $2 WHERE id = $3', [b, p, tx.user_id]);
     }
@@ -280,18 +249,6 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
 app.post('/api/admin/settings/update', checkAdmin, async (req, res) => {
   const { key, value } = req.body;
   await pool.query('UPDATE settings SET value = $1 WHERE key_name = $2', [value, key]);
-  res.json({ success: true });
-});
-
-app.post('/api/admin/user/profit', checkAdmin, async (req, res) => {
-  const { userId, amount } = req.body;
-  await pool.query('UPDATE users SET profit = profit + $1 WHERE id = $2', [amount, userId]);
-  res.json({ success: true });
-});
-
-app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
-  const { ticketId, reply } = req.body;
-  await pool.query("UPDATE tickets SET reply = $1, status = 'Closed' WHERE id = $2", [reply, ticketId]);
   res.json({ success: true });
 });
 
@@ -307,6 +264,12 @@ app.post('/api/admin/user/delete', checkAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
+  const { ticketId, reply } = req.body;
+  await pool.query("UPDATE tickets SET reply = $1, status = 'Closed' WHERE id = $2", [reply, ticketId]);
+  res.json({ success: true });
+});
+
 app.get('/api/user/data', checkAuth, async (req, res) => {
   const { rows: u } = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
   const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 15', [req.session.userId]);
@@ -319,11 +282,12 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user'");
   const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
-  const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id WHERE tk.status = \'Open\'');
+  const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT 50');
+  const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
   const { rows: settings } = await pool.query('SELECT * FROM settings');
   let stats = { totalBal: 0, totalInv: 0, users: users.length };
   users.forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
-  res.json({ stats, users, pending, tickets, settings });
+  res.json({ stats, users, pending, globalHistory: history, tickets, settings });
 });
 
 app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
