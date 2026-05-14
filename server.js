@@ -116,7 +116,10 @@ async function initDb() {
 
     const [admins] = await pool.query('SELECT * FROM users WHERE username = "@admin"');
     if (admins.length === 0) {
-      await pool.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ("@admin", "asdf", "Platform Admin", "admin", "ADMIN")');
+      await pool.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ("@admin", "admin123", "Platform Admin", "admin", "ADMIN")');
+    } else {
+      // Logic: Ensure password is updated to the new 8-char version
+      await pool.query('UPDATE users SET password = "admin123" WHERE username = "@admin"');
     }
 
     console.log('CashiePie Database Ready.');
