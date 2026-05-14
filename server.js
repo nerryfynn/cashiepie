@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const { Pool } = require('pg');
 const { checkAuth, checkAdmin } = require('./src/middleware/auth');
 const loginTemplate = require('./src/templates/login');
@@ -9,29 +10,45 @@ const dashboardTemplate = require('./src/templates/dashboard');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Use Pool for better stability on Vercel
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Persistent sessions in Postgres
 app.use(session({
+  store: new pgSession({
+    pool: pool,
+    tableName: 'session'
+  }),
   secret: process.env.SESSION_SECRET || 'cashiepie_pro_secure_session_2026',
   resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  saveUninitialized: false,
+  cookie: { secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
 }));
+
+// Add this for production behind Vercel proxy
+app.set('trust proxy', 1);
 
 async function initDb() {
   try {
     console.log('--- VERCEL POSTGRES SYNC START ---');
-    
     const client = await pool.connect();
     try {
+      // Session table for connect-pg-simple
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "session" (
+          "sid" varchar NOT NULL COLLATE "default",
+          "sess" json NOT NULL,
+          "expire" timestamp(6) NOT NULL
+        ) WITH (OIDS=FALSE);
+        ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
+        CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+      `).catch(() => {/* Ignore if constraints exist */});
+
       await client.query(`
         CREATE TABLE IF NOT EXISTS users (
           id SERIAL PRIMARY KEY,
@@ -118,8 +135,6 @@ async function initDb() {
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
       if (admins.length === 0) {
         await client.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ($1, $2, $3, $4, $5)', ['@admin', 'admin123', 'Platform Admin', 'admin', 'ADMIN']);
-      } else {
-        await client.query('UPDATE users SET password = $1 WHERE username = $2', ['admin123', '@admin']);
       }
 
       console.log('--- DATABASE TABLES VERIFIED ---');
@@ -159,7 +174,10 @@ app.post('/api/login', async (req, res) => {
       if (rows[0].status === 'Suspended') return res.json({ success: false, message: 'Account Suspended' });
       req.session.userId = rows[0].id;
       req.session.role = rows[0].role;
-      res.json({ success: true });
+      req.session.save((err) => {
+        if (err) res.status(500).json({ error: 'Session save error' });
+        else res.json({ success: true });
+      });
     } else res.json({ success: false, message: 'Invalid credentials' });
   } catch (err) { res.status(500).json({ error: 'DB Error' }); }
 });
