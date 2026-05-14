@@ -11,7 +11,10 @@ const PORT = process.env.PORT || 3000;
 
 // Use Pool for better stability on Vercel
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL + "?sslmode=require",
+  connectionString: process.env.POSTGRES_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 app.use(express.json());
