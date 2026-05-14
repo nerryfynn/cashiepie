@@ -280,9 +280,10 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
 });
 
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
   const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user'");
   const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
-  const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT 50');
+  const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1', [limit]);
   const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
   const { rows: settings } = await pool.query('SELECT * FROM settings');
   let stats = { totalBal: 0, totalInv: 0, users: users.length };
