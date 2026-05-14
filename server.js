@@ -166,9 +166,15 @@ async function processMaturity() {
 
 initDb();
 
-app.get('/', (req, res) => {
-  if (req.session.userId) res.send(dashboardTemplate(req.session.role));
-  else res.send(loginTemplate());
+app.get('/', async (req, res) => {
+  if (req.session.userId) {
+    res.send(dashboardTemplate(req.session.role));
+  } else {
+    // Fetch settings for the login page (like WhatsApp link)
+    const { rows } = await pool.query("SELECT value FROM settings WHERE key_name = 'whatsapp_link'");
+    const whatsapp = rows[0]?.value || '123456';
+    res.send(loginTemplate(whatsapp));
+  }
 });
 
 app.post('/api/login', async (req, res) => {

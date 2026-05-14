@@ -1,6 +1,6 @@
 const baseStyles = require('../styles/baseStyles');
 
-function loginTemplate() {
+function loginTemplate(whatsapp = '123456') {
   return `<!DOCTYPE html>
   <html lang="en">
   <head>
@@ -133,7 +133,8 @@ function loginTemplate() {
         e.preventDefault();
         const id = document.getElementById('forgotId').value;
         const msg = encodeURIComponent(\`Hello, I would like to request a password reset for my account: \${id}. Please provide a reset link.\`);
-        window.open(\`https://wa.me/123456?text=\${msg}\`, '_blank');
+        // Use the dynamic WhatsApp number passed from the server
+        window.open(\`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=\${msg}\`, '_blank');
         showSnackbar("Request sent to secure support channel", "success");
         toggleForm('loginForm');
       }
