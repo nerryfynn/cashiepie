@@ -8,12 +8,20 @@
     "dev": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "ejs": "^5.0.2",
+    "express": "^4.18.2",
+    "express-session": "^1.19.0",
+    "mysql2": "^3.22.3"
   },
   "engines": {
     "node": ">=18.x"
   },
-  "keywords": ["simulation", "investment", "dashboard", "admin"],
+  "keywords": [
+    "simulation",
+    "investment",
+    "dashboard",
+    "admin"
+  ],
   "author": "CPie",
   "license": "MIT"
 }
