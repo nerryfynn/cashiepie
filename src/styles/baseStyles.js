@@ -89,6 +89,7 @@ const baseStyles = `
     position: fixed; top: 0; right: -100%; width: 100%; max-width: 450px; height: 100%; 
     background: white; z-index: 6000; box-shadow: -20px 0 60px rgba(0,0,0,0.1);
     transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); padding: 2.5rem;
+    overflow-y: auto;
   }
   .slide-panel.active { right: 0; }
   .panel-overlay {
