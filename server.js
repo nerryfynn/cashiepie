@@ -18,12 +18,14 @@ app.use(session({
 }));
 
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'cashiepie_db',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : null
 });
 
 async function initDb() {
@@ -312,3 +314,5 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
+
+module.exports = app;
