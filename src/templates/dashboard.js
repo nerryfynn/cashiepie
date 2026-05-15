@@ -34,7 +34,7 @@ function dashboardTemplate(role) {
       .admin-stat-row div { text-align: center; }
       .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border); }
       .settings-row:last-child { border-bottom: none; }
-      .crypto-box { background:#f1f5f9; padding:1.2rem; border-radius:15px; margin-bottom:1rem; border:1px dashed var(--primary); }
+      .bank-box { background:#f1f5f9; padding:1.5rem; border-radius:20px; margin-bottom:1.5rem; border:2px solid var(--border); }
       @media (max-width: 600px) { .main-container { padding-bottom: 100px; } }
     </style>
   </head>
@@ -66,8 +66,13 @@ function dashboardTemplate(role) {
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; padding:1.5rem;">
-          <h3 class="section-title"><i class="fas fa-cog"></i> Platform Configuration</h3>
+          <h3 class="section-title"><i class="fas fa-cog"></i> Platform Settings</h3>
           <div id="adminSettings"></div>
+        </div>
+
+        <div class="glass-card" style="margin-bottom:2rem; padding:1.5rem;">
+          <h3 class="section-title"><i class="fas fa-rocket"></i> Investment Plan Control</h3>
+          <div id="adminPlanList"></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
@@ -106,9 +111,7 @@ function dashboardTemplate(role) {
 
         <div id="plansSect" class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
           <h3 class="section-title" style="padding:1.8rem 1.8rem 0.5rem 1.8rem;"><i class="fas fa-star"></i> Investment Tiers</h3>
-          <div class="plan-item"><div><strong>Starter Pool</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">12% Return • 7 Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="buyPlan('Starter Pool', 500, 12, 7)">Invest $500</button></div>
-          <div class="plan-item"><div><strong>Growth Elite</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">25% Return • 14 Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="buyPlan('Growth Elite', 2500, 25, 14)">Invest $2.5k</button></div>
-          <div class="plan-item"><div><strong>Whale Protocol</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">60% Return • 30 Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="buyPlan('Whale Protocol', 10000, 60, 30)">Invest $10k</button></div>
+          <div id="userPlanList"></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; padding:1.5rem; background:#f8fafc; border:1px dashed var(--primary);">
@@ -158,10 +161,11 @@ function dashboardTemplate(role) {
     </div>
 
     <div id="withdrawPanel" class="slide-panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
         <h2 style="font-weight:900;">Withdraw</h2>
         <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
       </div>
+      <div class="bank-box" id="bankInfoBox">...</div>
       <p id="wdInfo" style="color:var(--text-muted); font-weight:600; margin-bottom:2rem; font-size:0.85rem;">...</p>
       <input type="number" id="wdAmt" class="panel-input" placeholder="Amount in USD">
       <button class="btn-grad" style="width:100%; background:var(--dark);" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
@@ -174,6 +178,7 @@ function dashboardTemplate(role) {
       </div>
       <input type="hidden" id="editUserId">
       <div class="input-group"><label>Full Name</label><input type="text" id="editUserName" class="panel-input"></div>
+      <div class="input-group"><label>New Password (Leave blank to keep same)</label><input type="text" id="editUserPass" class="panel-input" placeholder="••••••••"></div>
       <div class="input-group"><label>Balance ($)</label><input type="number" id="editUserBal" class="panel-input"></div>
       <div class="input-group"><label>Profit ($)</label><input type="number" id="editUserProf" class="panel-input"></div>
       <div class="input-group"><label>Principal ($)</label><input type="number" id="editUserInv" class="panel-input"></div>
@@ -209,13 +214,17 @@ function dashboardTemplate(role) {
         if(!amount || amount <= 0) return showSnackbar("Invalid amount", "error");
         const res = await fetch(\`/api/\${type}\`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount:parseFloat(amount) }) });
         const data = await res.json();
-        if(data.success) { showSnackbar(data.message, "success"); closePanel(); loadData(); }
+        if(data.success) { 
+          showSnackbar(data.message, "success"); 
+          if(type === 'withdraw') showSnackbar("Funds locked until approval/rejection", "success");
+          closePanel(); loadData(); 
+        }
         else showSnackbar(data.message, "error");
       }
 
-      async function buyPlan(planName, amount, roi, days) {
-        if(!confirm(\`Invest $\${amount.toLocaleString()} into \${planName}?\`)) return;
-        const res = await fetch('/api/plan/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ planName, amount, roi, days }) });
+      async function buyPlan(planId, amount) {
+        if(!confirm(\`Invest $\${parseFloat(amount).toLocaleString()} into this plan?\`)) return;
+        const res = await fetch('/api/plan/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ planId, amount:parseFloat(amount) }) });
         const data = await res.json();
         if(data.success) { showSnackbar(data.message, "success"); loadData(); }
         else showSnackbar(data.message, "error");
@@ -231,7 +240,12 @@ function dashboardTemplate(role) {
       }
 
       async function processRequest(txId, action) {
-        const res = await fetch('/api/admin/tx/process', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ txId, action }) });
+        let reason = null;
+        if(action === 'Rejected') {
+          reason = prompt("Reason for rejection:");
+          if(!reason) return;
+        }
+        const res = await fetch('/api/admin/tx/process', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ txId, action, reason }) });
         const data = await res.json(); if(data.success) loadData();
       }
 
@@ -240,9 +254,20 @@ function dashboardTemplate(role) {
         const data = await res.json(); if(data.success) { showSnackbar("Updated", "success"); loadData(); }
       }
 
+      async function updatePlan(id) {
+        const name = prompt("Plan Name:"); if(!name) return;
+        const min_amount = prompt("Min Amount ($):"); if(!min_amount) return;
+        const roi = prompt("ROI (%):"); if(!roi) return;
+        const days = prompt("Days:"); if(!days) return;
+        const body = { id, name, min_amount:parseFloat(min_amount), roi:parseFloat(roi), days:parseInt(days) };
+        const res = await fetch('/api/admin/plans/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        const data = await res.json(); if(data.success) { showSnackbar("Plan updated", "success"); loadData(); }
+      }
+
       function openEditUser(id, name, bal, prof, inv, status) {
         document.getElementById('editUserId').value = id;
         document.getElementById('editUserName').value = name;
+        document.getElementById('editUserPass').value = '';
         document.getElementById('editUserBal').value = bal;
         document.getElementById('editUserProf').value = prof;
         document.getElementById('editUserInv').value = inv;
@@ -254,6 +279,7 @@ function dashboardTemplate(role) {
         const body = {
           userId: document.getElementById('editUserId').value,
           name: document.getElementById('editUserName').value,
+          password: document.getElementById('editUserPass').value,
           balance: parseFloat(document.getElementById('editUserBal').value),
           profit: parseFloat(document.getElementById('editUserProf').value),
           investment: parseFloat(document.getElementById('editUserInv').value),
@@ -295,34 +321,29 @@ function dashboardTemplate(role) {
             \`;
             const pendingTbody = document.getElementById('pendingTxs'); pendingTbody.innerHTML = '';
             data.pending.forEach(tx => {
-              pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small></td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="processRequest('\${tx.id}', 'Approved')">APPROVE</button></td></tr>\`;
+              pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small></td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><div style="display:flex; gap:5px;"><button class="btn-grad" style="padding:6px 10px; font-size:0.6rem;" onclick="processRequest('\${tx.id}', 'Approved')">OK</button><button class="btn-grad" style="padding:6px 10px; font-size:0.6rem; background:#ef4444;" onclick="processRequest('\${tx.id}', 'Rejected')">REJ</button></div></td></tr>\`;
             });
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             data.settings.forEach(s => {
-              // HIDE ETH and USDT from Admin settings
-              if(s.key_name === 'eth_address' || s.key_name === 'usdt_trc20') return;
               settingsDiv.innerHTML += \`<div class="settings-row"><div><strong>\${s.key_name.toUpperCase()}</strong><br><small style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="const v=prompt('New value:', '\${s.value}'); if(v) updateSetting('\${s.key_name}', v)">EDIT</button></div>\`;
+            });
+            const planDiv = document.getElementById('adminPlanList'); planDiv.innerHTML = '';
+            data.plans.forEach(p => {
+              planDiv.innerHTML += \`<div class="settings-row"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted);">Min: $\${p.min_amount} | \${p.roi}% | \${p.days}d</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="updatePlan('\${p.id}')">EDIT</button></div>\`;
             });
             const userTbody = document.getElementById('adminUserList'); userTbody.innerHTML = '';
             data.users.forEach(u => {
-              userTbody.innerHTML += \`<tr><td><strong>\${u.name}</strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem; cursor:pointer;"><i class="fas fa-edit"></i></button></td></tr>\`;
+              userTbody.innerHTML += \`<tr><td><strong>\${u.name} \${u.role === 'admin' ? '<span class="pill pill-approved" style="font-size:0.5rem;">ADMIN</span>' : ''}</strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem; cursor:pointer;"><i class="fas fa-edit"></i></button></td></tr>\`;
             });
-            
             const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
             if(data.globalHistory) {
               data.globalHistory.forEach(tx => {
                 globalHistTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
               });
             }
-
             const ticketDiv = document.getElementById('adminTicketList'); ticketDiv.innerHTML = '';
             data.tickets.forEach(tk => {
-              ticketDiv.innerHTML += \`
-                <div class="ticket-box">
-                  <strong>\${tk.userName}</strong>: \${tk.subject}<br>
-                  <small>\${tk.message}</small><br>
-                  \${tk.reply ? \`<div style="background:white; padding:10px; border-radius:12px; margin-top:10px; font-size:0.8rem; border:1px solid #eee;"><strong>Your Reply:</strong> \${tk.reply}</div>\` : \`<button class="btn-grad" style="padding:6px 12px; font-size:0.65rem; margin-top:8px;" onclick="replyTicket('\${tk.id}')">REPLY</button>\`}
-                </div>\`;
+              ticketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.userName}</strong>: \${tk.subject}<br><small>\${tk.message}</small><br>\${tk.reply ? \`<div style="background:white; padding:10px; border-radius:12px; margin-top:10px; font-size:0.8rem; border:1px solid #eee;"><strong>Your Reply:</strong> \${tk.reply}</div>\` : \`<button class="btn-grad" style="padding:6px 12px; font-size:0.65rem; margin-top:8px;" onclick="replyTicket('\${tk.id}')">REPLY</button>\`}</div>\`;
             });
           } else {
             const res = await fetch('/api/user/data');
@@ -336,9 +357,21 @@ function dashboardTemplate(role) {
             document.getElementById('userRefCode').innerText = data.user.referral_code;
             document.getElementById('wdInfo').innerText = \`Min: $\${data.settings.min_withdrawal} • Fee: \${data.settings.withdrawal_fee_percent}%\`;
             
+            document.getElementById('bankInfoBox').innerHTML = \`
+              <p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Bank Payout Details</p>
+              <h3 style="font-weight:900; margin:0.5rem 0;">\${data.settings.bank_name}</h3>
+              <p style="font-size:0.85rem; font-weight:700;">Account: \${data.settings.account_name}</p>
+              <p style="font-size:0.85rem; font-weight:700;">Number: \${data.settings.account_number}</p>
+            \`;
+
             const cryptoList = document.getElementById('cryptoList'); cryptoList.innerHTML = \`
               <div class="crypto-box"><p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BITCOIN (BTC) ADDRESS</p><div style="display:flex; align-items:center; gap:10px;"><code id="btc_addr" style="font-size:0.7rem; word-break:break-all; font-weight:700;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC Address')" style="background:var(--dark); color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; font-size:0.7rem;"><i class="fas fa-copy"></i></button></div></div>
             \`;
+
+            const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
+            data.plans.forEach(p => {
+              userPlanList.innerHTML += \`<div class="plan-item"><div><strong>\${p.name}</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">\${p.roi}% Return • \${p.days} Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="const a=prompt('Amount to Invest (Min $\${p.min_amount}):', '\${p.min_amount}'); if(a) buyPlan('\${p.id}', a)">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
+            });
 
             const supportLinks = document.getElementById('supportLinks'); supportLinks.innerHTML = \`
               <a href="\${data.settings.telegram_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#229ED9;"><i class="fab fa-telegram"></i> Telegram</a>
@@ -347,7 +380,7 @@ function dashboardTemplate(role) {
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
             data.transactions.forEach(tx => {
               const pill = tx.status === 'Pending' ? 'pill-pending' : tx.status === 'Approved' ? 'pill-approved' : 'pill-rejected';
-              histTbody.innerHTML += \`<tr><td><strong>\${tx.type}</strong><br><small>\${new Date(tx.created_at).toLocaleDateString()}</small></td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${pill}">\${tx.status}</span></td></tr>\`;
+              histTbody.innerHTML += \`<tr><td><strong>\${tx.type}</strong><br><small>\${new Date(tx.created_at).toLocaleDateString()}</small>\${tx.rejection_reason ? \`<br><small style="color:#ef4444;">Reason: \${tx.rejection_reason}</small>\` : ''}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${pill}">\${tx.status}</span></td></tr>\`;
             });
             const uTicketDiv = document.getElementById('userTicketList'); uTicketDiv.innerHTML = '';
             data.tickets.forEach(tk => {
