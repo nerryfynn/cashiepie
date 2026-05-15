@@ -231,7 +231,7 @@ function dashboardTemplate(role) {
         <h4 style="font-size:0.65rem; text-transform:uppercase; opacity:0.6; font-weight:800; margin-bottom:10px;">Your Payout Bank</h4>
         <div id="bankDisplay">
           <p style="font-size:0.9rem; font-weight:900; color:var(--dark);">No bank set</p>
-          <button class="toggle-link" style="font-size:0.7rem; margin-top:5px;" onclick="openBankEdit()">Set Bank Details <i class="fas fa-edit"></i></button>
+          <button class="btn-grad" style="font-size:0.75rem; margin-top:5px; padding:8px 16px;" onclick="openBankEdit()">Change Details <i class="fas fa-edit" style="margin-left:8px;"></i></button>
         </div>
       </div>
       <input type="number" id="wdAmt" class="panel-input" placeholder="Amount in USD">
@@ -343,8 +343,9 @@ function dashboardTemplate(role) {
         else showSnackbar(data.message, "error");
       }
 
-      async function buyPlan(planId, amount, min) {
-        if(amount < min) return showSnackbar(\`Minimum for this plan is $\${min.toLocaleString()}\`, "error");
+      async function buyPlan(planId, amount, min, max) {
+        if(amount < min) return showSnackbar(`Minimum for this plan is $${min.toLocaleString()}`, "error");
+        if(max > 0 && amount > max) return showSnackbar(`Maximum for this plan is $${max.toLocaleString()}`, "error");
         const res = await fetch('/api/plan/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ planId, amount:parseFloat(amount) }) });
         const data = await res.json();
         if(data.success) { showSnackbar(data.message, "success"); loadData(); }
@@ -386,12 +387,22 @@ function dashboardTemplate(role) {
           if(!name) return;
           showPrompt("Min Amount", "Min for " + name, "Amount", (min) => {
             if(!min) return;
-            showPrompt("ROI", "ROI %", "ROI", (roi) => {
-              if(!roi) return;
-              showPrompt("Days", "Days", "Days", async (days) => {
-                const body = { id, name, min_amount:parseFloat(min), roi:parseFloat(roi), days:parseInt(days) };
-                await fetch('/api/admin/plans/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-                loadData();
+            showPrompt("Max Amount", "Max for " + name + " (leave blank for no cap)", "Amount", (max) => {
+              if(max === null || max === undefined) return;
+              showPrompt("ROI", "ROI %", "ROI", (roi) => {
+                if(!roi) return;
+                showPrompt("Days", "Days", "Days", async (days) => {
+                  const body = {
+                    id,
+                    name,
+                    min_amount: parseFloat(min),
+                    max_amount: max.trim() ? parseFloat(max) : null,
+                    roi: parseFloat(roi),
+                    days: parseInt(days)
+                  };
+                  await fetch('/api/admin/plans/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                  loadData();
+                });
               });
             });
           });
@@ -509,7 +520,7 @@ function dashboardTemplate(role) {
             
             const bankDisplay = document.getElementById('bankDisplay');
             if(data.user.bank_name) {
-              bankDisplay.innerHTML = \`<p style="font-size:0.9rem; font-weight:900; color:var(--dark);">\${data.user.bank_name}</p><p style="font-size:0.75rem; font-weight:700; opacity:0.6;">\${data.user.account_name} • \${data.user.account_number}</p><button class="toggle-link" style="font-size:0.7rem; margin-top:5px;" onclick="openBankEdit()">Change Details <i class="fas fa-edit"></i></button>\`;
+              bankDisplay.innerHTML = \`<p style="font-size:0.9rem; font-weight:900; color:var(--dark);">\${data.user.bank_name}</p><p style="font-size:0.75rem; font-weight:700; opacity:0.6;">\${data.user.account_name} • \${data.user.account_number}</p><button class="btn-grad" style="font-size:0.75rem; margin-top:5px; padding:8px 16px;" onclick="openBankEdit()">Change Details <i class="fas fa-edit" style="margin-left:8px;"></i></button>\`;
               document.getElementById('uBankName').value = data.user.bank_name;
               document.getElementById('uBankNum').value = data.user.account_number;
               document.getElementById('uBankAcc').value = data.user.account_name;
@@ -523,18 +534,19 @@ function dashboardTemplate(role) {
                const pRoi = p.roi;
                const pDays = p.days;
                const pMin = parseFloat(p.min_amount);
+               const pMax = parseFloat(p.max_amount || 0);
                const pId = p.id;
                
                const planCard = document.createElement('div');
                planCard.className = 'plan-item';
                planCard.style = 'padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;';
-               planCard.innerHTML = '<div><strong>' + pName + '</strong><br><small style="color:var(--text-muted); font-weight:700;">' + pRoi + '% Return • ' + pDays + 'd</small></div>';
+               planCard.innerHTML = '<div><strong>' + pName + '</strong><br><small style="color:var(--text-muted); font-weight:700;">' + pRoi + '% Return • ' + pDays + 'd</small><br><small style="color:var(--text-muted); font-weight:700;">Min $' + pMin.toLocaleString() + (pMax > 0 ? ' • Max $' + pMax.toLocaleString() : '') + '</small></div>';
                
                const buyBtn = document.createElement('button');
                buyBtn.className = 'btn-grad';
                buyBtn.style = 'padding:10px 20px; font-size:0.75rem;';
-               buyBtn.innerText = 'Invest $' + pMin.toLocaleString() + '+';
-               buyBtn.onclick = () => showPrompt('Invest', 'Min $' + pMin.toLocaleString(), pMin, (a) => buyPlan(pId, a, pMin));
+               buyBtn.innerText = 'Invest $' + pMin.toLocaleString() + (pMax > 0 ? ' - $' + pMax.toLocaleString() : '+');
+               buyBtn.onclick = () => showPrompt('Invest', pMax > 0 ? 'Min $' + pMin.toLocaleString() + ' - Max $' + pMax.toLocaleString() : 'Min $' + pMin.toLocaleString(), pMin, (a) => buyPlan(pId, a, pMin, pMax));
                
                planCard.appendChild(buyBtn);
                userPlanList.appendChild(planCard);

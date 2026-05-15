@@ -112,10 +112,12 @@ async function initDb() {
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           min_amount DECIMAL(15, 2) NOT NULL,
+          max_amount DECIMAL(15, 2),
           roi DECIMAL(5, 2) NOT NULL,
           days INT NOT NULL
         )
       `);
+      await client.query(`ALTER TABLE investment_plans ADD COLUMN IF NOT EXISTS max_amount DECIMAL(15, 2)`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS active_plans (
@@ -315,6 +317,7 @@ app.post('/api/plan/buy', checkAuth, async (req, res) => {
   if (plans.length === 0) return res.json({ success: false, message: 'Plan not found' });
   const plan = plans[0];
   if (amount < parseFloat(plan.min_amount)) return res.json({ success: false, message: `Minimum for this plan is $${parseFloat(plan.min_amount).toLocaleString()}` });
+  if (parseFloat(plan.max_amount || 0) > 0 && amount > parseFloat(plan.max_amount)) return res.json({ success: false, message: `Maximum for this plan is $${parseFloat(plan.max_amount).toLocaleString()}` });
 
   const { rows: u } = await pool.query('SELECT balance FROM users WHERE id = $1', [req.session.userId]);
   if (parseFloat(u[0].balance) < amount) return res.json({ success: false, message: 'Insufficient balance' });
@@ -440,8 +443,13 @@ app.post('/api/admin/settings/update', checkAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/plans/update', checkAdmin, async (req, res) => {
-  const { id, name, min_amount, roi, days } = req.body;
-  await pool.query('UPDATE investment_plans SET name = $1, min_amount = $2, roi = $3, days = $4 WHERE id = $5', [name, min_amount, roi, days, id]);
+  const { id, name, min_amount, max_amount, roi, days } = req.body;
+  const { rows: existing } = await pool.query('SELECT name FROM investment_plans WHERE id = $1', [id]);
+  const oldName = existing[0]?.name;
+  await pool.query('UPDATE investment_plans SET name = $1, min_amount = $2, max_amount = $3, roi = $4, days = $5 WHERE id = $6', [name, min_amount, max_amount, roi, days, id]);
+  if (oldName) {
+    await pool.query('UPDATE active_plans SET plan_name = $1, roi = $2 WHERE plan_name = $3', [name, roi, oldName]);
+  }
   res.json({ success: true });
 });
 
