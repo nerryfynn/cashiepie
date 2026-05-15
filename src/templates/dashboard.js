@@ -294,8 +294,8 @@ function dashboardTemplate(role) {
         if(inputPlaceholder) inputArea.innerHTML = \`<input type="text" id="modalInput" class="panel-input" placeholder="\${inputPlaceholder}">\`;
         document.getElementById('promptConfirmBtn').onclick = () => {
           const val = inputPlaceholder ? document.getElementById('modalInput').value : true;
-          onConfirm(val);
           closeModal();
+          onConfirm(val);
         };
         document.getElementById('promptModal').classList.add('active');
       }
