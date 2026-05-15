@@ -123,7 +123,7 @@ function dashboardTemplate(role) {
           </div>
         </div>
 
-        <div class="action-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin:2.5rem 0;">
+        <div class="action-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin:2rem 0;">
           <div class="action-btn" onclick="openPanel('depositPanel')"><i class="fas fa-plus"></i><span>Add Funds</span></div>
           <div class="action-btn" onclick="openPanel('withdrawPanel')"><i class="fas fa-arrow-up"></i><span>Withdraw</span></div>
         </div>
@@ -186,6 +186,17 @@ function dashboardTemplate(role) {
       <button class="btn-grad" style="width:100%;" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
     </div>
 
+    <div id="bankEditPanel" class="slide-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-weight:900;">Bank Details</h2>
+        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="input-group"><label>Bank Name</label><input type="text" id="uBankName" class="panel-input" placeholder="e.g. Chase Bank"></div>
+      <div class="input-group"><label>Account Number</label><input type="text" id="uBankNum" class="panel-input" placeholder="1234567890"></div>
+      <div class="input-group"><label>Account Holder Name</label><input type="text" id="uBankAcc" class="panel-input" placeholder="Full Name"></div>
+      <button class="btn-grad" style="width:100%;" onclick="saveBankDetails()">Save Details <i class="fas fa-save"></i></button>
+    </div>
+
     <div id="editUserPanel" class="slide-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
         <h2 style="font-weight:900;">Edit Investor</h2>
@@ -210,8 +221,14 @@ function dashboardTemplate(role) {
         sb.className = "show " + (type || "");
         setTimeout(() => { sb.className = ""; }, 3000);
       }
-      function openPanel(id) { document.getElementById(id).classList.add('active'); document.getElementById('panelOverlay').classList.add('active'); }
-      function closePanel() { document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('active')); document.getElementById('panelOverlay').classList.remove('active'); }
+      function openPanel(id) { 
+        document.getElementById(id).classList.add('active'); 
+        document.getElementById('panelOverlay').classList.add('active'); 
+      }
+      function closePanel() { 
+        document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('active')); 
+        document.getElementById('panelOverlay').classList.remove('active'); 
+      }
       document.getElementById('panelOverlay').onclick = closePanel;
 
       function showPrompt(title, body, inputPlaceholder, onConfirm) {
@@ -235,19 +252,15 @@ function dashboardTemplate(role) {
         showSnackbar(label + " copied!", "success");
       }
 
-      function openBankEdit() {
-        showPrompt("Bank Name", "Enter your Bank Name:", "e.g. Chase Bank", (bank) => {
-          if(!bank) return;
-          showPrompt("Account Number", "Enter your Account Number:", "1234567890", (accNum) => {
-            if(!accNum) return;
-            showPrompt("Account Name", "Enter Account Holder Name:", "Full Name", async (accName) => {
-              if(!accName) return;
-              const res = await fetch('/api/user/bank/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bank_name:bank, account_name:accName, account_number:accNum }) });
-              const data = await res.json();
-              if(data.success) { showSnackbar("Bank Details Saved", "success"); loadData(); }
-            });
-          });
-        });
+      function openBankEdit() { openPanel('bankEditPanel'); }
+      async function saveBankDetails() {
+        const bank_name = document.getElementById('uBankName').value;
+        const account_number = document.getElementById('uBankNum').value;
+        const account_name = document.getElementById('uBankAcc').value;
+        if(!bank_name || !account_number || !account_name) return showSnackbar("All fields required", "error");
+        const res = await fetch('/api/user/bank/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bank_name, account_name, account_number }) });
+        const data = await res.json();
+        if(data.success) { showSnackbar("Bank Details Saved", "success"); closePanel(); loadData(); }
       }
 
       async function handleLogout() { await fetch('/api/logout', { method:'POST' }); window.location.reload(); }
@@ -390,6 +403,9 @@ function dashboardTemplate(role) {
             const bankDisplay = document.getElementById('bankDisplay');
             if(data.user.bank_name) {
               bankDisplay.innerHTML = \`<p style="font-size:0.9rem; font-weight:900; color:var(--dark);">\${data.user.bank_name}</p><p style="font-size:0.75rem; font-weight:700; opacity:0.6;">\${data.user.account_name} • \${data.user.account_number}</p><button class="toggle-link" style="font-size:0.7rem; margin-top:5px;" onclick="openBankEdit()">Change Details <i class="fas fa-edit"></i></button>\`;
+              document.getElementById('uBankName').value = data.user.bank_name;
+              document.getElementById('uBankNum').value = data.user.account_number;
+              document.getElementById('uBankAcc').value = data.user.account_name;
             }
 
             document.getElementById('cryptoList').innerHTML = \`<div class="glass-card" style="padding:1.5rem; margin-bottom:1.5rem; border:1px solid #fed7aa; background:#fff7ed; text-align:center;"><p style="font-size:0.65rem; font-weight:800; color:#ea580c; text-transform:uppercase; margin-bottom:10px;">BITCOIN (BTC) ADDRESS</p><code id="btc_addr" style="font-size:0.8rem; font-weight:900; color:var(--dark); word-break:break-all; display:block; margin-bottom:15px;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC')" class="btn-grad" style="padding:8px 20px; font-size:0.75rem; background:#ea580c; box-shadow:none;">COPY ADDRESS <i class="fas fa-copy"></i></button></div>\`;
