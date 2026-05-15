@@ -81,6 +81,13 @@ async function initDb() {
         )
       `);
 
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15, 2) DEFAULT 0`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS investment DECIMAL(15, 2) DEFAULT 0`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profit DECIMAL(15, 2) DEFAULT 0`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by VARCHAR(50)`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255)`).catch(() => {});
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name VARCHAR(255)`).catch(() => {});
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(255)`).catch(() => {});
@@ -97,6 +104,8 @@ async function initDb() {
         )
       `);
       await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rejection_reason TEXT`).catch(() => {});
+      await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
+      await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending'`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS investment_plans (
@@ -121,6 +130,12 @@ async function initDb() {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+      await client.query(`ALTER TABLE active_plans ADD COLUMN IF NOT EXISTS plan_name VARCHAR(100)`).catch(() => {});
+      await client.query(`ALTER TABLE active_plans ADD COLUMN IF NOT EXISTS amount DECIMAL(15,2)`).catch(() => {});
+      await client.query(`ALTER TABLE active_plans ADD COLUMN IF NOT EXISTS roi DECIMAL(5,2)`).catch(() => {});
+      await client.query(`ALTER TABLE active_plans ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
+      await client.query(`ALTER TABLE active_plans ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ`).catch(() => {});
+      await client.query(`ALTER TABLE active_plans ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS tickets (
@@ -134,6 +149,9 @@ async function initDb() {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+      await client.query(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS reply TEXT`).catch(() => {});
+      await client.query(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Open'`).catch(() => {});
+      await client.query(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS settings (
@@ -366,6 +384,7 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
       plans 
     });
   } catch (err) {
+    console.error('USER DATA ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
