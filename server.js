@@ -71,11 +71,11 @@ async function initDb() {
           type VARCHAR(50) NOT NULL,
           amount DECIMAL(15, 2) NOT NULL,
           status VARCHAR(50) DEFAULT 'Pending',
-          rejection_reason TEXT,
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+      await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rejection_reason TEXT`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS investment_plans (
@@ -319,17 +319,22 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
+  const sort = req.query.sort || 'latest';
 
   const pendingPage = parseInt(req.query.pendingPage) || 1;
   const pendingLimit = 5;
   const pendingOffset = (pendingPage - 1) * pendingLimit;
 
-  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user' ORDER BY created_at DESC");
+  let userOrderBy = 'created_at DESC';
+  if(sort === 'oldest') userOrderBy = 'created_at ASC';
+  else if(sort === 'az') userOrderBy = 'name ASC';
+
+  const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY ${userOrderBy}`);
   
   const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\' ORDER BY t.created_at ASC LIMIT $1 OFFSET $2', [pendingLimit, pendingOffset]);
   const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
   
-  const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1 OFFSET $2', [limit, offset]);
+  const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at ${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
   const { rows: totalHist } = await pool.query('SELECT count(*) FROM transactions');
 
   const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');

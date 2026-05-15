@@ -38,6 +38,8 @@ function dashboardTemplate(role) {
       .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
       .page-btn:not(:disabled):hover { border-color: var(--primary); color: var(--primary); }
 
+      .sort-select { background: #f1f5f9; border: 1px solid var(--border); border-radius: 12px; padding: 6px 12px; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); cursor: pointer; }
+
       @media (max-width: 600px) { 
         .main-container { padding: 1.2rem; padding-bottom: 110px; }
         .admin-stat-row { grid-template-columns: 1fr; }
@@ -102,12 +104,25 @@ function dashboardTemplate(role) {
         </div>
 
         <div class="glass-card" style="margin-bottom:2.5rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:2rem 2rem 0.5rem 2rem;"><i class="fas fa-users"></i> Investor Base</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:2rem 2rem 0.5rem 2rem;">
+            <h3 class="section-title" style="margin:0;"><i class="fas fa-users"></i> Investor Base</h3>
+            <select class="sort-select" id="investorSort" onchange="loadData()">
+              <option value="latest">Latest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="az">A-Z Name</option>
+            </select>
+          </div>
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>Investor</th><th>Bank Details</th><th>Balance</th><th>Principal</th><th>Action</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2.5rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:2rem 2rem 0.5rem 2rem;"><i class="fas fa-history"></i> Global History</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:2rem 2rem 0.5rem 2rem;">
+            <h3 class="section-title" style="margin:0;"><i class="fas fa-history"></i> Global History</h3>
+            <select class="sort-select" id="historySort" onchange="loadData()">
+              <option value="latest">Latest First</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </div>
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="adminGlobalTxList"></tbody></table></div>
           <div class="pagination-bar">
             <button class="page-btn" id="prevAdminPage" onclick="changeAdminPage(-1)"><i class="fas fa-chevron-left"></i> NEXT</button>
@@ -393,7 +408,8 @@ function dashboardTemplate(role) {
       async function loadData() {
         try {
           if('${role}' === 'admin') {
-            const res = await fetch(\`/api/admin/data?page=\${adminPage}&pendingPage=\${pendingPage}\`);
+            const sort = document.getElementById('investorSort').value;
+            const res = await fetch(\`/api/admin/data?page=\${adminPage}&pendingPage=\${pendingPage}&sort=\${sort}\`);
             const data = await res.json();
             if(!data || !data.stats) return;
 
@@ -466,7 +482,7 @@ function dashboardTemplate(role) {
             
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
             (data.plans || []).forEach(p => {
-              userPlanList.innerHTML += \`<div class="plan-item" style="padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted); font-weight:700;">\${p.roi}% Return • \${p.days}d</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt('Invest', 'Min $\${p.min_amount}', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a, \${p.min_amount}))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
+              userPlanList.innerHTML += \`<div class="plan-item" style="padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted); font-weight:700;">\${p.roi}% Return • \${p.days}d</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt('Invest', 'Min $\${parseFloat(p.min_amount).toLocaleString()}', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a, \${p.min_amount}))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
             });
             
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
