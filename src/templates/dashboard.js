@@ -27,6 +27,11 @@ function dashboardTemplate(role) {
       .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
       .setting-item { background: #fcfcfc; border: 1px solid var(--border); padding: 1rem; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; }
       
+      /* Fixed Modal CSS */
+      .cpie-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px; }
+      .cpie-modal.active { display: flex !important; animation: fadeIn 0.3s ease-out; }
+      .modal-content { background: white; width: 100%; max-width: 400px; padding: 2rem; border-radius: 28px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
+      
       @media (max-width: 600px) { 
         .settings-grid { grid-template-columns: 1fr; }
         .truncate { max-width: 120px; }
