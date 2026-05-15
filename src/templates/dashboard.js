@@ -436,7 +436,6 @@ function dashboardTemplate(role) {
         try {
           if('${role}' === 'admin') {
             const sort = document.getElementById('investorSort').value;
-            const hSort = document.getElementById('historySort').value;
             const pSort = document.getElementById('pendingSort').value;
             const res = await fetch(\`/api/admin/data?page=\${adminPage}&pendingPage=\${pendingPage}&sort=\${sort}&pendingSort=\${pSort}\`);
             const data = await res.json();
@@ -489,13 +488,16 @@ function dashboardTemplate(role) {
           } else {
             const res = await fetch(\`/api/user/data?page=\${userPage}&limit=3\`);
             const data = await res.json();
-            if(!data || !data.user) return;
+            if(!data || !data.user) {
+               showSnackbar("Failed to load user data. Please refresh.", "error");
+               return;
+            }
             cachedSettings = data.settings;
 
-            document.getElementById('siteName').innerText = data.settings.platform_name;
-            document.getElementById('userName').innerText = data.user.name;
-            document.getElementById('profName').value = data.user.name;
-            document.getElementById('userInitial').innerText = data.user.name.charAt(0);
+            document.getElementById('siteName').innerText = data.settings.platform_name || 'CashiePie';
+            document.getElementById('userName').innerText = data.user.name || 'Investor';
+            document.getElementById('profName').value = data.user.name || '';
+            document.getElementById('userInitial').innerText = (data.user.name || 'I').charAt(0);
             document.getElementById('userBalance').innerText = '$' + parseFloat(data.user.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
             document.getElementById('userInv').innerText = '$' + parseFloat(data.user.investment || 0).toLocaleString();
             document.getElementById('userProf').innerText = '$' + parseFloat(data.user.profit || 0).toLocaleString();
@@ -508,11 +510,16 @@ function dashboardTemplate(role) {
               document.getElementById('uBankAcc').value = data.user.account_name;
             }
 
-            document.getElementById('cryptoList').innerHTML = \`<div class="glass-card" style="padding:1.5rem; margin-bottom:1.5rem; border:1px solid #fed7aa; background:#fff7ed; text-align:center;"><p style="font-size:0.65rem; font-weight:800; color:#ea580c; text-transform:uppercase; margin-bottom:10px;">BITCOIN (BTC) ADDRESS</p><code id="btc_addr" style="font-size:0.8rem; font-weight:900; color:var(--dark); word-break:break-all; display:block; margin-bottom:15px;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC')" class="btn-grad" style="padding:8px 20px; font-size:0.75rem; background:#ea580c; box-shadow:none;">COPY ADDRESS <i class="fas fa-copy"></i></button></div>\`;
+            document.getElementById('cryptoList').innerHTML = \`<div class="glass-card" style="padding:1.5rem; margin-bottom:1.5rem; border:1px solid #fed7aa; background:#fff7ed; text-align:center;"><p style="font-size:0.65rem; font-weight:800; color:#ea580c; text-transform:uppercase; margin-bottom:10px;">BITCOIN (BTC) ADDRESS</p><code id="btc_addr" style="font-size:0.8rem; font-weight:900; color:var(--dark); word-break:break-all; display:block; margin-bottom:15px;">\${data.settings.btc_address || 'TUKfCbvVxAjmXLqTyzxT6TjvBWAEckou9s'}</code><button onclick="copyText('btc_addr', 'BTC')" class="btn-grad" style="padding:8px 20px; font-size:0.75rem; background:#ea580c; box-shadow:none;">COPY ADDRESS <i class="fas fa-copy"></i></button></div>\`;
             
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
             (data.plans || []).forEach(p => {
-              userPlanList.innerHTML += \`<div class="plan-item" style="padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted); font-weight:700;">\${p.roi}% Return • \${p.days}d</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt('Invest', 'Min $\${parseFloat(p.min_amount).toLocaleString()}', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a, \${p.min_amount}))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
+              const pName = p.name;
+              const pRoi = p.roi;
+              const pDays = p.days;
+              const pMin = parseFloat(p.min_amount);
+              const pId = p.id;
+              userPlanList.innerHTML += '<div class="plan-item" style="padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;"><div><strong>' + pName + '</strong><br><small style="color:var(--text-muted); font-weight:700;">' + pRoi + '% Return • ' + pDays + 'd</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt(\\'Invest\\', \\'Min $' + pMin.toLocaleString() + '\\', \\'' + pMin + '\\', (a) => buyPlan(\\'' + pId + '\\', a, ' + pMin + '))">Invest $' + pMin.toLocaleString() + '+</button></div>';
             });
             
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
@@ -530,7 +537,10 @@ function dashboardTemplate(role) {
               uTicketDiv.innerHTML += \`<div class="ticket-box" style="background:#f8fafc; border-radius:24px; padding:1.5rem; margin-bottom:1.2rem; border:1px solid var(--border);"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;"><strong>\${tk.subject}</strong><span class="pill \${tk.status === 'Open' ? 'pill-pending' : 'pill-approved'}">\${tk.status}</span></div><p style="font-size:0.85rem; color:var(--text-muted);">\${tk.message}</p>\${tk.reply ? \`<div class="reply-box" style="background:white; padding:1.2rem; border-radius:18px; margin-top:1rem; border:1px solid var(--border); box-shadow:var(--shadow-sm);"><strong>Admin Reply:</strong><br>\${tk.reply}</div>\` : ''}</div>\`;
             });
           }
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+          console.error("BROWSER SCRIPT ERROR:", e);
+          showSnackbar("Dashboard update failed. Check console.", "error");
+        }
       }
       loadData();
     </script>

@@ -75,6 +75,7 @@ async function initDb() {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+      // FORCE ALTER TABLE
       await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rejection_reason TEXT`).catch(() => {});
 
       await client.query(`
@@ -303,23 +304,28 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
   const limit = parseInt(req.query.limit) || 3;
   const offset = (page - 1) * limit;
 
-  const { rows: u } = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
-  const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [req.session.userId, limit, offset]);
-  const { rows: totalTxs } = await pool.query('SELECT count(*) FROM transactions WHERE user_id = $1', [req.session.userId]);
-  
-  const { rows: tickets } = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC');
-  const { rows: settings } = await pool.query('SELECT * FROM settings');
-  const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
-  const setObj = {}; settings.forEach(s => setObj[s.key_name] = s.value);
-  
-  res.json({ 
-    user: u[0], 
-    transactions: txs, 
-    totalTxs: parseInt(totalTxs[0].count),
-    tickets, 
-    settings: setObj, 
-    plans 
-  });
+  try {
+    const { rows: u } = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
+    const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [req.session.userId, limit, offset]);
+    const { rows: totalTxs } = await pool.query('SELECT count(*) FROM transactions WHERE user_id = $1', [req.session.userId]);
+    
+    const { rows: tickets } = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC');
+    const { rows: settings } = await pool.query('SELECT * FROM settings');
+    const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
+    const setObj = {}; settings.forEach(s => setObj[s.key_name] = s.value);
+    
+    res.json({ 
+      user: u[0], 
+      transactions: txs, 
+      totalTxs: parseInt(totalTxs[0].count),
+      tickets, 
+      settings: setObj, 
+      plans 
+    });
+  } catch (err) {
+    console.error('USER DATA FETCH ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
@@ -333,33 +339,38 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const pendingLimit = 5;
   const pendingOffset = (pendingPage - 1) * pendingLimit;
 
-  let userOrderBy = 'created_at DESC';
-  if(sort === 'oldest') userOrderBy = 'created_at ASC';
-  else if(sort === 'az') userOrderBy = 'name ASC';
+  try {
+    let userOrderBy = 'created_at DESC';
+    if(sort === 'oldest') userOrderBy = 'created_at ASC';
+    else if(sort === 'az') userOrderBy = 'name ASC';
 
-  const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY ${userOrderBy}`);
-  
-  const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at ${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
-  const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
-  
-  const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at ${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
-  const { rows: totalHist } = await pool.query('SELECT count(*) FROM transactions');
+    const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY ${userOrderBy}`);
+    
+    const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at ${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
+    const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
+    
+    const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at ${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
+    const { rows: totalHist } = await pool.query('SELECT count(*) FROM transactions');
 
-  const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
-  const { rows: settings } = await pool.query('SELECT * FROM settings');
-  const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
-  
-  let stats = { totalBal: 0, totalInv: 0, users: users.length };
-  users.forEach(u => { stats.totalBal += parseFloat(u.balance || 0); stats.totalInv += parseFloat(u.investment || 0); });
-  
-  res.json({ 
-    stats, users, 
-    pending, 
-    totalPending: parseInt(totalPending[0].count),
-    globalHistory: history, 
-    totalHistory: parseInt(totalHist[0].count),
-    tickets, settings, plans 
-  });
+    const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
+    const { rows: settings } = await pool.query('SELECT * FROM settings');
+    const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
+    
+    let stats = { totalBal: 0, totalInv: 0, users: users.length };
+    users.forEach(u => { stats.totalBal += parseFloat(u.balance || 0); stats.totalInv += parseFloat(u.investment || 0); });
+    
+    res.json({ 
+      stats, users, 
+      pending, 
+      totalPending: parseInt(totalPending[0].count),
+      globalHistory: history, 
+      totalHistory: parseInt(totalHist[0].count),
+      tickets, settings, plans 
+    });
+  } catch (err) {
+    console.error('ADMIN DATA FETCH ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/admin/settings/update', checkAdmin, async (req, res) => {
