@@ -12,31 +12,23 @@ function dashboardTemplate(role) {
       ${baseStyles}
       .main-container { max-width: 800px; margin: 0 auto; padding: 1.5rem; padding-bottom: 120px; }
       .hero-stat-card { padding: 2.2rem; margin-bottom: 1.5rem; border: none; background: var(--primary-grad); color: white; box-shadow: 0 20px 40px rgba(230, 126, 34, 0.2); position: relative; overflow: hidden; }
-      .hero-stat-card h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.85; font-weight: 800; }
       .hero-stat-card .val { font-size: clamp(1.8rem, 8vw, 2.8rem); font-weight: 900; margin-top: 0.5rem; letter-spacing: -1px; white-space: nowrap; overflow: hidden; }
-      .sub-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 2rem; }
       .sub-stat-card { padding: 1.5rem; text-align: center; overflow: hidden; }
       .sub-stat-card .val { font-size: clamp(1rem, 5vw, 1.5rem); font-weight: 900; white-space: nowrap; overflow: hidden; }
-      .section-title { font-size: 1.2rem; font-weight: 900; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 10px; }
-      .plan-item { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
       
-      /* Colors restored */
       .pill { padding: 6px 12px; border-radius: 100px; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
       .pill-pending { background: #fffbeb; color: #b45309; }
       .pill-approved { background: #f0fdf4; color: #15803d; }
       .pill-rejected { background: #fef2f2; color: #b91c1c; }
 
-      .admin-hero { background: #0f172a; color: white; padding: 2.5rem; border-radius: 30px; margin-bottom: 2rem; }
-      .admin-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-      .bank-box { background:#f1f5f9; padding:1.5rem; border-radius:20px; margin-bottom:1.5rem; border:2px solid var(--border); }
+      .ticket-box { background: #f8fafc; border-radius: 24px; padding: 1.5rem; margin-bottom: 1.2rem; border: 1px solid var(--border); position: relative; }
+      .reply-box { background: white; padding: 1.2rem; border-radius: 18px; margin-top: 1rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
       
-      .cpie-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px; }
-      .cpie-modal.active { display: flex; animation: fadeIn 0.3s ease-out; }
-      .modal-content { background: white; width: 100%; max-width: 400px; padding: 2rem; border-radius: 28px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
+      .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .setting-item { background: #fcfcfc; border: 1px solid var(--border); padding: 1rem; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; }
       
-      .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; max-width: 100%; }
       @media (max-width: 600px) { 
-        .main-container { padding: 1rem; padding-bottom: 100px; }
+        .settings-grid { grid-template-columns: 1fr; }
         .truncate { max-width: 120px; }
       }
     </style>
@@ -60,43 +52,43 @@ function dashboardTemplate(role) {
     <header class="sticky-header">
        <div style="display:flex; align-items:center; gap:10px;">
          <i class="fas fa-chart-pie" style="color:var(--primary); font-size:1.6rem;"></i>
-         <h1 id="siteName" style="font-weight:900; font-size:1.3rem; letter-spacing:-0.5px;">...</h1>
+         <h1 id="siteName" style="font-weight:900; font-size:1.3rem;">...</h1>
        </div>
-       <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
+       <div style="display:flex; align-items:center; gap:12px;">
          <span id="userName" class="truncate" style="font-weight:700; font-size:0.85rem; color:var(--text-muted);">...</span>
-         <div style="width:38px; height:38px; background:var(--dark); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.9rem; flex-shrink:0;" id="userInitial">?</div>
+         <div style="width:38px; height:38px; background:var(--dark); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.9rem;" id="userInitial">?</div>
        </div>
     </header>
 
     <div class="main-container">
       ${role === 'admin' ? `
         <div class="admin-hero">
-          <h3 style="font-weight:900; margin-bottom:1.5rem; font-size:1.4rem;"><i class="fas fa-shield-check" style="color:var(--primary);"></i> Command Center</h3>
+          <h3 style="font-weight:900; margin-bottom:1.5rem;"><i class="fas fa-shield-check"></i> Command Center</h3>
           <div class="admin-stat-row" id="adminStats"></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:1.5rem 1.5rem 0 1.5rem; color:#ef4444;"><i class="fas fa-bolt"></i> Urgent Approvals</h3>
+          <h3 class="section-title" style="padding:1.5rem; color:#ef4444;"><i class="fas fa-bolt"></i> Urgent Approvals</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><tbody id="pendingTxs"></tbody></table></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; padding:1.5rem;">
           <h3 class="section-title"><i class="fas fa-cog"></i> Platform Settings</h3>
-          <div id="adminSettings"></div>
+          <div class="settings-grid" id="adminSettings"></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; padding:1.5rem;">
           <h3 class="section-title"><i class="fas fa-rocket"></i> Investment Plan Control</h3>
-          <div id="adminPlanList"></div>
+          <div class="settings-grid" id="adminPlanList"></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:1.5rem 1.5rem 0 1.5rem;"><i class="fas fa-users"></i> Investor Base</h3>
+          <h3 class="section-title" style="padding:1.5rem;"><i class="fas fa-users"></i> Investor Base</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>Investor</th><th>Balance</th><th>Principal</th><th>Action</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:1.5rem 1.5rem 0 1.5rem;"><i class="fas fa-history"></i> Global History</h3>
+          <h3 class="section-title" style="padding:1.5rem;"><i class="fas fa-history"></i> Global History</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="adminGlobalTxList"></tbody></table></div>
           <div style="padding:1rem; text-align:center;"><button class="toggle-link" style="font-size:0.7rem;" onclick="loadMoreHistory()">See More History...</button></div>
         </div>
@@ -107,42 +99,32 @@ function dashboardTemplate(role) {
         </div>
       ` : `
         <div class="hero-stat-card glass-card">
-          <h4 id="heroTitle">Net Portfolio Value</h4>
+          <h4>Net Portfolio Value</h4>
           <div class="val" id="userBalance">$0.00</div>
         </div>
 
-        <div class="sub-stat-grid">
+        <div class="sub-stat-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-bottom:2rem;">
           <div class="glass-card sub-stat-card"><h4>Working Capital</h4><div class="val" id="userInv">$0</div></div>
           <div class="glass-card sub-stat-card"><h4>Total Returns</h4><div class="val" id="userProf" style="color:#10b981;">$0</div></div>
         </div>
 
-        <div class="action-grid">
+        <div class="action-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin:2rem 0;">
           <div class="action-btn" onclick="openPanel('depositPanel')"><i class="fas fa-plus"></i><span>Deposit</span></div>
           <div class="action-btn" onclick="openPanel('withdrawPanel')"><i class="fas fa-arrow-up"></i><span>Withdraw</span></div>
-          <div class="action-btn" onclick="window.scrollTo({top:document.getElementById('plansSect').offsetTop-100, behavior:'smooth'})"><i class="fas fa-rocket"></i><span>Invest</span></div>
-          <div class="action-btn" onclick="window.scrollTo({top:document.getElementById('supportSect').offsetTop-100, behavior:'smooth'})"><i class="fas fa-life-ring"></i><span>Support</span></div>
         </div>
 
         <div id="plansSect" class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:1.8rem 1.8rem 0.5rem 1.8rem;"><i class="fas fa-star"></i> Investment Tiers</h3>
+          <h3 class="section-title" style="padding:1.5rem;"><i class="fas fa-star"></i> Investment Tiers</h3>
           <div id="userPlanList"></div>
         </div>
 
-        <div class="glass-card" style="margin-bottom:2rem; padding:1.5rem; background:#f8fafc; border:1px dashed var(--primary);">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div><p style="font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Your Referral Code</p><h3 id="userRefCode" style="font-weight:900; font-size:1.2rem; color:var(--primary);">...</h3></div>
-            <button class="btn-grad" style="padding:8px 16px; font-size:0.75rem;" onclick="copyText('userRefCode', 'Referral code')">Copy Code <i class="fas fa-copy"></i></button>
-          </div>
-        </div>
-
         <div class="glass-card" style="margin-bottom:2rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:1.8rem 1.8rem 0.5rem 1.8rem;"><i class="fas fa-history"></i> Recent Activity</h3>
+          <h3 class="section-title" style="padding:1.5rem;"><i class="fas fa-history"></i> Recent Activity</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><tbody id="userTxList"></tbody></table></div>
         </div>
 
         <div id="supportSect" class="glass-card" style="padding:2rem;">
           <h3 class="section-title" style="margin-bottom:1rem;"><i class="fas fa-comments"></i> Support Center</h3>
-          <div style="display:flex; gap:10px; margin-bottom:2rem;" id="supportLinks"></div>
           <div id="userTicketList"></div>
           <div style="margin-top:2rem;">
             <input type="text" id="ticketSub" class="panel-input" placeholder="Subject">
@@ -155,10 +137,6 @@ function dashboardTemplate(role) {
 
     <nav class="sticky-footer">
       <a class="footer-item active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-home"></i><span>Home</span></a>
-      ${role === 'user' ? `
-        <a class="footer-item" onclick="openPanel('depositPanel')"><i class="fas fa-wallet"></i><span>Deposit</span></a>
-        <a class="footer-item" onclick="openPanel('withdrawPanel')"><i class="fas fa-paper-plane"></i><span>Payout</span></a>
-      ` : ''}
       <a class="footer-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Exit</span></a>
     </nav>
 
@@ -166,7 +144,7 @@ function dashboardTemplate(role) {
     <div id="depositPanel" class="slide-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
         <h2 style="font-weight:900;">Add Funds</h2>
-        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
       </div>
       <div id="cryptoList"></div>
       <input type="number" id="depAmt" class="panel-input" placeholder="Amount in USD">
@@ -176,18 +154,17 @@ function dashboardTemplate(role) {
     <div id="withdrawPanel" class="slide-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
         <h2 style="font-weight:900;">Withdraw</h2>
-        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
       </div>
       <div class="bank-box" id="bankInfoBox">...</div>
-      <p id="wdInfo" style="color:var(--text-muted); font-weight:600; margin-bottom:2rem; font-size:0.85rem;">...</p>
       <input type="number" id="wdAmt" class="panel-input" placeholder="Amount in USD">
-      <button class="btn-grad" style="width:100%; background:var(--dark);" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
+      <button class="btn-grad" style="width:100%;" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
     </div>
 
     <div id="editUserPanel" class="slide-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
         <h2 style="font-weight:900;">Edit Investor</h2>
-        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
       </div>
       <input type="hidden" id="editUserId">
       <div class="input-group"><label>Full Name</label><input type="text" id="editUserName" class="panel-input"></div>
@@ -197,7 +174,6 @@ function dashboardTemplate(role) {
       <div class="input-group"><label>Principal ($)</label><input type="number" id="editUserInv" class="panel-input"></div>
       <div class="input-group"><label>Account Status</label><select id="editUserStatus" class="panel-input"><option value="Active">Active</option><option value="Suspended">Suspended</option></select></div>
       <button class="btn-grad" style="width:100%;" onclick="saveUserEdit()">Save Changes <i class="fas fa-save"></i></button>
-      <button class="btn-grad" style="width:100%; margin-top:10px; background:#ef4444;" onclick="showPrompt('Delete Account', 'Are you sure?', null, deleteUser)">Delete Account <i class="fas fa-trash"></i></button>
     </div>
 
     <script>
@@ -229,10 +205,9 @@ function dashboardTemplate(role) {
       function closeModal() { document.getElementById('promptModal').classList.remove('active'); }
 
       function copyText(id, label) {
-        const el = document.getElementById(id);
-        const text = el.innerText || el.value;
+        const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text);
-        showSnackbar(\`\${label} copied!\`, "success");
+        showSnackbar(label + " copied!", "success");
       }
 
       async function handleLogout() { await fetch('/api/logout', { method:'POST' }); window.location.reload(); }
@@ -315,13 +290,6 @@ function dashboardTemplate(role) {
         if(data.success) { showSnackbar("User updated", "success"); closePanel(); loadData(); }
       }
 
-      async function deleteUser() {
-        const userId = document.getElementById('editUserId').value;
-        const res = await fetch('/api/admin/user/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId }) });
-        const data = await res.json();
-        if(data.success) { showSnackbar("User deleted", "success"); closePanel(); loadData(); }
-      }
-
       async function replyTicket(ticketId) {
         showPrompt("Reply", "Enter message:", "Reply content", async (reply) => {
           if(!reply) return;
@@ -349,25 +317,23 @@ function dashboardTemplate(role) {
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             data.settings.forEach(s => {
               if(s.key_name === 'eth_address' || s.key_name === 'usdt_trc20') return;
-              settingsDiv.innerHTML += \`<div class="settings-row"><div><strong>\${s.key_name.toUpperCase()}</strong><br><small style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="showPrompt('Edit Setting', 'Value for \${s.key_name}', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
+              settingsDiv.innerHTML += \`<div class="setting-item"><div><strong style="font-size:0.65rem;">\${s.key_name.toUpperCase()}</strong><br><small class="truncate" style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 10px; font-size:0.6rem;" onclick="showPrompt('Edit', 'New value', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
             });
             const planDiv = document.getElementById('adminPlanList'); planDiv.innerHTML = '';
             data.plans.forEach(p => {
-              planDiv.innerHTML += \`<div class="settings-row"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted);">Min: $\${p.min_amount} | \${p.roi}%</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="editPlan('\${p.id}', '\${p.name}')">EDIT</button></div>\`;
+              planDiv.innerHTML += \`<div class="setting-item"><div><strong style="font-size:0.65rem;">\${p.name}</strong><br><small style="color:var(--text-muted);">$\${p.min_amount}</small></div><button class="btn-grad" style="padding:6px 10px; font-size:0.6rem;" onclick="editPlan('\${p.id}', '\${p.name}')">EDIT</button></div>\`;
             });
             const userTbody = document.getElementById('adminUserList'); userTbody.innerHTML = '';
             data.users.forEach(u => {
-              userTbody.innerHTML += \`<tr><td><strong><span class="truncate">\${u.name}</span></strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem; cursor:pointer;"><i class="fas fa-edit"></i></button></td></tr>\`;
+              userTbody.innerHTML += \`<tr><td><strong><span class="truncate">\${u.name}</span></strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem;"><i class="fas fa-edit"></i></button></td></tr>\`;
             });
             const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
-            if(data.globalHistory) {
-              data.globalHistory.forEach(tx => {
-                globalHistTbody.innerHTML += \`<tr><td><strong><span class="truncate">\${tx.userName}</span></strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
-              });
-            }
+            data.globalHistory.forEach(tx => {
+              globalHistTbody.innerHTML += \`<tr><td><strong><span class="truncate">\${tx.userName}</span></strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
+            });
             const ticketDiv = document.getElementById('adminTicketList'); ticketDiv.innerHTML = '';
             data.tickets.forEach(tk => {
-              ticketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.userName}</strong>: \${tk.subject}<br><small>\${tk.message}</small><br>\${tk.reply ? \`<div style="background:white; padding:10px; border-radius:12px; margin-top:10px; font-size:0.8rem; border:1px solid #eee;"><strong>Your Reply:</strong> \${tk.reply}</div>\` : \`<button class="btn-grad" style="padding:6px 12px; font-size:0.65rem; margin-top:8px;" onclick="replyTicket('\${tk.id}')">REPLY</button>\`}</div>\`;
+              ticketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.userName}</strong>: \${tk.subject}<br><small>\${tk.message}</small>\${tk.reply ? \`<div class="reply-box"><strong>Admin Reply:</strong><br>\${tk.reply}</div>\` : \`<button class="btn-grad" style="margin-top:10px; padding:6px 12px; font-size:0.7rem;" onclick="replyTicket('\${tk.id}')">REPLY</button>\`}</div>\`;
             });
           } else {
             const res = await fetch('/api/user/data');
@@ -378,25 +344,22 @@ function dashboardTemplate(role) {
             document.getElementById('userBalance').innerText = '$' + data.user.balance.toLocaleString();
             document.getElementById('userInv').innerText = '$' + data.user.investment.toLocaleString();
             document.getElementById('userProf').innerText = '$' + data.user.profit.toLocaleString();
-            document.getElementById('userRefCode').innerText = data.user.referral_code;
-            document.getElementById('wdInfo').innerText = \`Min: $\${data.settings.min_withdrawal} • Fee: \${data.settings.withdrawal_fee_percent}%\`;
-            document.getElementById('bankInfoBox').innerHTML = \`<p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Bank Payout Details</p><h3 style="font-weight:900; margin:0.5rem 0;">\${data.settings.bank_name}</h3><p style="font-size:0.85rem; font-weight:700;">Account: \${data.settings.account_name}</p><p style="font-size:0.85rem; font-weight:700;">Number: \${data.settings.account_number}</p>\`;
-            const cryptoList = document.getElementById('cryptoList'); cryptoList.innerHTML = \`<div class="crypto-box"><p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BITCOIN (BTC) ADDRESS</p><div style="display:flex; align-items:center; gap:10px;"><code id="btc_addr" style="font-size:0.7rem; word-break:break-all; font-weight:700;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC Address')" style="background:var(--dark); color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; font-size:0.7rem;"><i class="fas fa-copy"></i></button></div></div>\`;
+            
+            document.getElementById('bankInfoBox').innerHTML = \`<p style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Bank Payout Details</p><h4 style="font-weight:900; margin:5px 0;">\${data.settings.bank_name}</h4><p style="font-size:0.8rem; font-weight:600;">\${data.settings.account_name}<br>\${data.settings.account_number}</p>\`;
+            document.getElementById('cryptoList').innerHTML = \`<div class="bank-box" style="margin-bottom:1rem;"><p style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BTC ADDRESS</p><code id="btc_addr" style="font-size:0.7rem;">\${data.settings.btc_address}</code><br><button onclick="copyText('btc_addr', 'BTC')" class="toggle-link" style="font-size:0.65rem; margin-top:5px;">Copy</button></div>\`;
             
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
             data.plans.forEach(p => {
-              userPlanList.innerHTML += \`<div class="plan-item"><div><strong>\${p.name}</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">\${p.roi}% Return • \${p.days} Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="showPrompt('Invest in \${p.name}', 'Amount (Min $\${p.min_amount}):', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
+              userPlanList.innerHTML += \`<div class="plan-item"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted);">\${p.roi}% Return • \${p.days}d</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt('Invest', 'Min $\${p.min_amount}', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
             });
-
-            const supportLinks = document.getElementById('supportLinks'); supportLinks.innerHTML = \`<a href="\${data.settings.telegram_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#229ED9;"><i class="fab fa-telegram"></i> Telegram</a><a href="\${data.settings.whatsapp_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#25D366;"><i class="fab fa-whatsapp"></i> WhatsApp</a>\`;
+            
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
             data.transactions.forEach(tx => {
-              const pill = tx.status === 'Pending' ? 'pill-pending' : tx.status === 'Approved' ? 'pill-approved' : 'pill-rejected';
-              histTbody.innerHTML += \`<tr><td><strong>\${tx.type}</strong><br><small>\${new Date(tx.created_at).toLocaleDateString()}</small></td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${pill}">\${tx.status}</span></td></tr>\`;
+              histTbody.innerHTML += \`<tr><td><strong>\${tx.type}</strong><br><small>\${new Date(tx.created_at).toLocaleDateString()}</small></td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Pending' ? 'pill-pending' : tx.status === 'Approved' ? 'pill-approved' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
             });
             const uTicketDiv = document.getElementById('userTicketList'); uTicketDiv.innerHTML = '';
             data.tickets.forEach(tk => {
-              uTicketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.subject}</strong> <span class="pill \${tk.status === 'Open' ? 'pill-pending' : 'pill-approved'}">\${tk.status}</span><br><small>\${tk.message}</small>\${tk.reply ? \`<div style="background:white; padding:10px; border-radius:12px; margin-top:10px; font-size:0.8rem; border:1px solid #eee;"><strong>Admin:</strong> \${tk.reply}</div>\` : ''}</div>\`;
+              uTicketDiv.innerHTML += \`<div class="ticket-box"><strong>\${tk.subject}</strong> <span class="pill \${tk.status === 'Open' ? 'pill-pending' : 'pill-approved'}">\${tk.status}</span><br><small>\${tk.message}</small>\${tk.reply ? \`<div class="reply-box"><strong>Admin Reply:</strong><br>\${tk.reply}</div>\` : ''}</div>\`;
             });
           }
         } catch(e) { console.error(e); }
