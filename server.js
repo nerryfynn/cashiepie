@@ -56,12 +56,14 @@ async function initDb() {
           referral_code VARCHAR(50) UNIQUE,
           referred_by VARCHAR(50),
           status VARCHAR(50) DEFAULT 'Active',
-          bank_name VARCHAR(255),
-          account_name VARCHAR(255),
-          account_number VARCHAR(255),
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
       `);
+
+      // FORCE ADD BANK COLUMNS IF THEY DON'T EXIST
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255)`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name VARCHAR(255)`).catch(() => {});
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(255)`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS transactions (
@@ -327,7 +329,7 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const { rows: settings } = await pool.query('SELECT * FROM settings');
   const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
   let stats = { totalBal: 0, totalInv: 0, users: users.length };
-  users.forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
+  users.forEach(u => { stats.totalBal += parseFloat(u.balance || 0); stats.totalInv += parseFloat(u.investment || 0); });
   res.json({ stats, users, pending, globalHistory: history, tickets, settings, plans });
 });
 

@@ -359,46 +359,50 @@ function dashboardTemplate(role) {
           if('${role}' === 'admin') {
             const res = await fetch(\`/api/admin/data?limit=\${historyLimit}\`);
             const data = await res.json();
+            if(!data || !data.stats) return;
+
             document.getElementById('adminStats').innerHTML = \`
-              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div style="font-size:1.4rem; font-weight:900;">$\${parseFloat(data.stats.totalBal).toLocaleString()}</div></div>
-              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">PRINCIPAL</p><div style="font-size:1.4rem; font-weight:900;">$\${parseFloat(data.stats.totalInv).toLocaleString()}</div></div>
-              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">USERS</p><div style="font-size:1.4rem; font-weight:900;">\${data.stats.users}</div></div>
+              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div style="font-size:1.4rem; font-weight:900;">$\${(data.stats.totalBal || 0).toLocaleString()}</div></div>
+              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">PRINCIPAL</p><div style="font-size:1.4rem; font-weight:900;">$\${(data.stats.totalInv || 0).toLocaleString()}</div></div>
+              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">USERS</p><div style="font-size:1.4rem; font-weight:900;">\${data.stats.users || 0}</div></div>
             \`;
             const pendingTbody = document.getElementById('pendingTxs'); pendingTbody.innerHTML = '';
-            data.pending.forEach(tx => {
+            (data.pending || []).forEach(tx => {
               const bankInfo = tx.type === 'Withdrawal' ? \`<div style="margin-top:8px; padding:10px; background:#f1f5f9; border-radius:12px; font-size:0.7rem; border-left:4px solid var(--primary);"><strong>PAYOUT TO:</strong><br>\${tx.bank_name || 'No Bank'}<br>Acc: \${tx.account_number || '-'}<br>Name: \${tx.account_name || '-'}</div>\` : '';
               pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small>\${bankInfo}</td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><div style="display:flex; gap:8px;"><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem;" onclick="processRequest('\${tx.id}', 'Approved')">OK</button><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem; background:#ef4444;" onclick="processRequest('\${tx.id}', 'Rejected')">REJ</button></div></td></tr>\`;
             });
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
-            data.settings.forEach(s => {
+            (data.settings || []).forEach(s => {
               settingsDiv.innerHTML += \`<div class="setting-item" style="background:#fcfcfc; border:1px solid var(--border); padding:1rem; border-radius:18px; display:flex; justify-content:space-between; align-items:center;"><div><strong style="font-size:0.65rem;">\${s.key_name.toUpperCase()}</strong><br><small class="truncate" style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="showPrompt('Edit Setting', 'Update \${s.key_name}', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
             });
             const planDiv = document.getElementById('adminPlanList'); planDiv.innerHTML = '';
-            data.plans.forEach(p => {
+            (data.plans || []).forEach(p => {
               planDiv.innerHTML += \`<div class="setting-item" style="background:#fcfcfc; border:1px solid var(--border); padding:1rem; border-radius:18px; display:flex; justify-content:space-between; align-items:center;"><div><strong style="font-size:0.65rem;">\${p.name}</strong><br><small style="color:var(--text-muted);">$\${p.min_amount}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="editPlan('\${p.id}', '\${p.name}')">EDIT</button></div>\`;
             });
             const userTbody = document.getElementById('adminUserList'); userTbody.innerHTML = '';
-            data.users.forEach(u => {
+            (data.users || []).forEach(u => {
               const bankDetails = u.bank_name ? \`<small style="display:block; opacity:0.6; font-size:0.65rem;">\${u.bank_name}<br>\${u.account_number}</small>\` : '<small style="opacity:0.3;">No Bank</small>';
               userTbody.innerHTML += \`<tr><td><strong>\${u.name}</strong><br><small>\${u.username}</small></td><td>\${bankDetails}</td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem;"><i class="fas fa-edit"></i></button></td></tr>\`;
             });
             const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
-            data.globalHistory.forEach(tx => {
+            (data.globalHistory || []).forEach(tx => {
               globalHistTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
             });
             const ticketDiv = document.getElementById('adminTicketList'); ticketDiv.innerHTML = '';
-            data.tickets.forEach(tk => {
+            (data.tickets || []).forEach(tk => {
               ticketDiv.innerHTML += \`<div class="ticket-box" style="background:#f8fafc; border-radius:24px; padding:1.5rem; margin-bottom:1.2rem; border:1px solid var(--border);"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;"><strong>\${tk.userName}</strong><span class="pill \${tk.status === 'Open' ? 'pill-pending' : 'pill-approved'}">\${tk.status}</span></div><p style="font-size:0.85rem; color:var(--text-muted);">\${tk.message}</p>\${tk.reply ? \`<div class="reply-box" style="background:white; padding:1.2rem; border-radius:18px; margin-top:1rem; border:1px solid var(--border); box-shadow:var(--shadow-sm);"><strong>Admin Reply:</strong><br>\${tk.reply}</div>\` : \`<button class="btn-grad" style="margin-top:10px; padding:8px 16px; font-size:0.7rem;" onclick="replyTicket('\${tk.id}')">REPLY</button>\`}</div>\`;
             });
           } else {
             const res = await fetch('/api/user/data');
             const data = await res.json();
+            if(!data || !data.user) return;
+
             document.getElementById('siteName').innerText = data.settings.platform_name;
             document.getElementById('userName').innerText = data.user.name;
             document.getElementById('userInitial').innerText = data.user.name.charAt(0);
-            document.getElementById('userBalance').innerText = '$' + parseFloat(data.user.balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
-            document.getElementById('userInv').innerText = '$' + parseFloat(data.user.investment).toLocaleString();
-            document.getElementById('userProf').innerText = '$' + parseFloat(data.user.profit).toLocaleString();
+            document.getElementById('userBalance').innerText = '$' + parseFloat(data.user.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+            document.getElementById('userInv').innerText = '$' + parseFloat(data.user.investment || 0).toLocaleString();
+            document.getElementById('userProf').innerText = '$' + parseFloat(data.user.profit || 0).toLocaleString();
             
             const bankDisplay = document.getElementById('bankDisplay');
             if(data.user.bank_name) {
@@ -411,16 +415,16 @@ function dashboardTemplate(role) {
             document.getElementById('cryptoList').innerHTML = \`<div class="glass-card" style="padding:1.5rem; margin-bottom:1.5rem; border:1px solid #fed7aa; background:#fff7ed; text-align:center;"><p style="font-size:0.65rem; font-weight:800; color:#ea580c; text-transform:uppercase; margin-bottom:10px;">BITCOIN (BTC) ADDRESS</p><code id="btc_addr" style="font-size:0.8rem; font-weight:900; color:var(--dark); word-break:break-all; display:block; margin-bottom:15px;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC')" class="btn-grad" style="padding:8px 20px; font-size:0.75rem; background:#ea580c; box-shadow:none;">COPY ADDRESS <i class="fas fa-copy"></i></button></div>\`;
             
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
-            data.plans.forEach(p => {
+            (data.plans || []).forEach(p => {
               userPlanList.innerHTML += \`<div class="plan-item" style="padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted); font-weight:700;">\${p.roi}% Return • \${p.days}d</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt('Invest', 'Min $\${p.min_amount}', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
             });
             
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
-            data.transactions.forEach(tx => {
+            (data.transactions || []).forEach(tx => {
               histTbody.innerHTML += \`<tr><td><strong>\${tx.type}</strong><br><small style="opacity:0.5;">\${new Date(tx.created_at).toLocaleDateString()}</small></td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Pending' ? 'pill-pending' : tx.status === 'Approved' ? 'pill-approved' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
             });
             const uTicketDiv = document.getElementById('userTicketList'); uTicketDiv.innerHTML = '';
-            data.tickets.forEach(tk => {
+            (data.tickets || []).forEach(tk => {
               uTicketDiv.innerHTML += \`<div class="ticket-box" style="background:#f8fafc; border-radius:24px; padding:1.5rem; margin-bottom:1.2rem; border:1px solid var(--border);"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;"><strong>\${tk.subject}</strong><span class="pill \${tk.status === 'Open' ? 'pill-pending' : 'pill-approved'}">\${tk.status}</span></div><p style="font-size:0.85rem; color:var(--text-muted);">\${tk.message}</p>\${tk.reply ? \`<div class="reply-box" style="background:white; padding:1.2rem; border-radius:18px; margin-top:1rem; border:1px solid var(--border); box-shadow:var(--shadow-sm);"><strong>Admin Reply:</strong><br>\${tk.reply}</div>\` : ''}</div>\`;
             });
           }
