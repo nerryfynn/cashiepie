@@ -19,33 +19,38 @@ function dashboardTemplate(role) {
       .sub-stat-card .val { font-size: clamp(1rem, 5vw, 1.5rem); font-weight: 900; white-space: nowrap; overflow: hidden; }
       .section-title { font-size: 1.2rem; font-weight: 900; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 10px; }
       .plan-item { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-      .plan-item strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+      
+      /* Colors restored */
+      .pill { padding: 6px 12px; border-radius: 100px; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+      .pill-pending { background: #fffbeb; color: #b45309; }
+      .pill-approved { background: #f0fdf4; color: #15803d; }
+      .pill-rejected { background: #fef2f2; color: #b91c1c; }
+
       .admin-hero { background: #0f172a; color: white; padding: 2.5rem; border-radius: 30px; margin-bottom: 2rem; }
       .admin-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
       .bank-box { background:#f1f5f9; padding:1.5rem; border-radius:20px; margin-bottom:1.5rem; border:2px solid var(--border); }
       
-      /* Custom Modal Styles */
       .cpie-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px; }
       .cpie-modal.active { display: flex; animation: fadeIn 0.3s ease-out; }
       .modal-content { background: white; width: 100%; max-width: 400px; padding: 2rem; border-radius: 28px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
-      .modal-title { font-weight: 900; font-size: 1.3rem; margin-bottom: 1rem; color: var(--dark); }
-      .modal-footer { display: flex; gap: 10px; margin-top: 1.5rem; }
       
-      .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; display: inline-block; }
-      @media (max-width: 600px) { .main-container { padding-bottom: 100px; } .hero-stat-card .val { font-size: 2.2rem; } }
+      .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; max-width: 100%; }
+      @media (max-width: 600px) { 
+        .main-container { padding: 1rem; padding-bottom: 100px; }
+        .truncate { max-width: 120px; }
+      }
     </style>
   </head>
   <body>
     <div id="snackbar"></div>
     <div id="panelOverlay" class="panel-overlay"></div>
 
-    <!-- Generic Prompt Modal -->
     <div id="promptModal" class="cpie-modal">
       <div class="modal-content">
-        <div class="modal-title" id="promptTitle">Confirm Action</div>
+        <div class="modal-title" id="promptTitle" style="font-weight:900; font-size:1.3rem; margin-bottom:1rem;">Confirm Action</div>
         <div id="promptBody" style="margin-bottom:1rem; font-size:0.9rem; color:var(--text-muted); font-weight:600;"></div>
         <div id="promptInputArea"></div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="display:flex; gap:10px; margin-top:1.5rem;">
           <button class="btn-grad" style="flex:1; background:#f1f5f9; color:var(--text-main); box-shadow:none;" onclick="closeModal()">Cancel</button>
           <button class="btn-grad" style="flex:1;" id="promptConfirmBtn">Confirm</button>
         </div>
@@ -57,8 +62,8 @@ function dashboardTemplate(role) {
          <i class="fas fa-chart-pie" style="color:var(--primary); font-size:1.6rem;"></i>
          <h1 id="siteName" style="font-weight:900; font-size:1.3rem; letter-spacing:-0.5px;">...</h1>
        </div>
-       <div style="display:flex; align-items:center; gap:12px;">
-         <span id="userName" class="truncate" style="font-weight:700; font-size:0.85rem; color:var(--text-muted); text-align:right;">...</span>
+       <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
+         <span id="userName" class="truncate" style="font-weight:700; font-size:0.85rem; color:var(--text-muted);">...</span>
          <div style="width:38px; height:38px; background:var(--dark); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.9rem; flex-shrink:0;" id="userInitial">?</div>
        </div>
     </header>
@@ -192,7 +197,7 @@ function dashboardTemplate(role) {
       <div class="input-group"><label>Principal ($)</label><input type="number" id="editUserInv" class="panel-input"></div>
       <div class="input-group"><label>Account Status</label><select id="editUserStatus" class="panel-input"><option value="Active">Active</option><option value="Suspended">Suspended</option></select></div>
       <button class="btn-grad" style="width:100%;" onclick="saveUserEdit()">Save Changes <i class="fas fa-save"></i></button>
-      <button class="btn-grad" style="width:100%; margin-top:10px; background:#ef4444;" onclick="showPrompt('Delete Account', 'Are you sure you want to delete this investor? This is permanent.', null, deleteUser)">Delete Account <i class="fas fa-trash"></i></button>
+      <button class="btn-grad" style="width:100%; margin-top:10px; background:#ef4444;" onclick="showPrompt('Delete Account', 'Are you sure?', null, deleteUser)">Delete Account <i class="fas fa-trash"></i></button>
     </div>
 
     <script>
@@ -213,9 +218,7 @@ function dashboardTemplate(role) {
         document.getElementById('promptBody').innerText = body;
         const inputArea = document.getElementById('promptInputArea');
         inputArea.innerHTML = '';
-        if(inputPlaceholder) {
-          inputArea.innerHTML = \`<input type="text" id="modalInput" class="panel-input" placeholder="\${inputPlaceholder}" style="margin-bottom:0;">\`;
-        }
+        if(inputPlaceholder) inputArea.innerHTML = \`<input type="text" id="modalInput" class="panel-input" placeholder="\${inputPlaceholder}">\`;
         document.getElementById('promptConfirmBtn').onclick = () => {
           const val = inputPlaceholder ? document.getElementById('modalInput').value : true;
           onConfirm(val);
@@ -270,17 +273,16 @@ function dashboardTemplate(role) {
       }
 
       function editPlan(id, curName) {
-        showPrompt("Edit Plan Name", "Enter the new name for " + curName, "Plan Name", (name) => {
+        showPrompt("Plan Name", "New name for " + curName, "Plan Name", (name) => {
           if(!name) return;
-          showPrompt("Edit Min Amount", "Enter the minimum investment for " + name, "Amount ($)", (min) => {
+          showPrompt("Min Amount", "Min for " + name, "Amount", (min) => {
             if(!min) return;
-            showPrompt("Edit ROI", "Enter the ROI percentage", "ROI (%)", (roi) => {
+            showPrompt("ROI", "ROI %", "ROI", (roi) => {
               if(!roi) return;
-              showPrompt("Edit Duration", "Enter days", "Days", async (days) => {
-                if(!days) return;
+              showPrompt("Days", "Days", "Days", async (days) => {
                 const body = { id, name, min_amount:parseFloat(min), roi:parseFloat(roi), days:parseInt(days) };
-                const res = await fetch('/api/admin/plans/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-                const data = await res.json(); if(data.success) { showSnackbar("Plan updated", "success"); loadData(); }
+                await fetch('/api/admin/plans/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                loadData();
               });
             });
           });
@@ -321,10 +323,10 @@ function dashboardTemplate(role) {
       }
 
       async function replyTicket(ticketId) {
-        showPrompt("Reply to Support", "Type your reply below:", "Your message...", async (reply) => {
+        showPrompt("Reply", "Enter message:", "Reply content", async (reply) => {
           if(!reply) return;
-          const res = await fetch('/api/admin/ticket/reply', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ticketId, reply }) });
-          const data = await res.json(); if(data.success) loadData();
+          await fetch('/api/admin/ticket/reply', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ticketId, reply }) });
+          loadData();
         });
       }
 
@@ -336,8 +338,8 @@ function dashboardTemplate(role) {
             const res = await fetch(\`/api/admin/data?limit=\${historyLimit}\`);
             const data = await res.json();
             document.getElementById('adminStats').innerHTML = \`
-              <div><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div class="val" style="font-size:1.4rem; font-weight:900;">$\${data.stats.totalBal.toLocaleString()}</div></div>
-              <div><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">PRINCIPAL</p><div class="val" style="font-size:1.4rem; font-weight:900;">$\${data.stats.totalInv.toLocaleString()}</div></div>
+              <div><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div style="font-size:1.4rem; font-weight:900;">$\${data.stats.totalBal.toLocaleString()}</div></div>
+              <div><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">PRINCIPAL</p><div style="font-size:1.4rem; font-weight:900;">$\${data.stats.totalInv.toLocaleString()}</div></div>
               <div><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">USERS</p><div style="font-size:1.4rem; font-weight:900;">\${data.stats.users}</div></div>
             \`;
             const pendingTbody = document.getElementById('pendingTxs'); pendingTbody.innerHTML = '';
@@ -347,11 +349,11 @@ function dashboardTemplate(role) {
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             data.settings.forEach(s => {
               if(s.key_name === 'eth_address' || s.key_name === 'usdt_trc20') return;
-              settingsDiv.innerHTML += \`<div class="settings-row"><div><strong>\${s.key_name.toUpperCase()}</strong><br><small style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="showPrompt('Edit Setting', 'Enter new value for \${s.key_name}', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
+              settingsDiv.innerHTML += \`<div class="settings-row"><div><strong>\${s.key_name.toUpperCase()}</strong><br><small style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="showPrompt('Edit Setting', 'Value for \${s.key_name}', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
             });
             const planDiv = document.getElementById('adminPlanList'); planDiv.innerHTML = '';
             data.plans.forEach(p => {
-              planDiv.innerHTML += \`<div class="settings-row"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted);">Min: $\${p.min_amount} | \${p.roi}% | \${p.days}d</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="editPlan('\${p.id}', '\${p.name}')">EDIT</button></div>\`;
+              planDiv.innerHTML += \`<div class="settings-row"><div><strong>\${p.name}</strong><br><small style="color:var(--text-muted);">Min: $\${p.min_amount} | \${p.roi}%</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="editPlan('\${p.id}', '\${p.name}')">EDIT</button></div>\`;
             });
             const userTbody = document.getElementById('adminUserList'); userTbody.innerHTML = '';
             data.users.forEach(u => {
@@ -380,10 +382,12 @@ function dashboardTemplate(role) {
             document.getElementById('wdInfo').innerText = \`Min: $\${data.settings.min_withdrawal} • Fee: \${data.settings.withdrawal_fee_percent}%\`;
             document.getElementById('bankInfoBox').innerHTML = \`<p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Bank Payout Details</p><h3 style="font-weight:900; margin:0.5rem 0;">\${data.settings.bank_name}</h3><p style="font-size:0.85rem; font-weight:700;">Account: \${data.settings.account_name}</p><p style="font-size:0.85rem; font-weight:700;">Number: \${data.settings.account_number}</p>\`;
             const cryptoList = document.getElementById('cryptoList'); cryptoList.innerHTML = \`<div class="crypto-box"><p style="font-size:0.65rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BITCOIN (BTC) ADDRESS</p><div style="display:flex; align-items:center; gap:10px;"><code id="btc_addr" style="font-size:0.7rem; word-break:break-all; font-weight:700;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC Address')" style="background:var(--dark); color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; font-size:0.7rem;"><i class="fas fa-copy"></i></button></div></div>\`;
+            
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
             data.plans.forEach(p => {
-              userPlanList.innerHTML += \`<div class="plan-item"><div><strong class="truncate">\${p.name}</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">\${p.roi}% Return • \${p.days} Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="showPrompt('Invest in \${p.name}', 'Enter amount (Min $\${p.min_amount}):', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
+              userPlanList.innerHTML += \`<div class="plan-item"><div><strong>\${p.name}</strong><p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">\${p.roi}% Return • \${p.days} Days</p></div><button class="btn-grad" style="padding:10px 20px; font-size:0.8rem;" onclick="showPrompt('Invest in \${p.name}', 'Amount (Min $\${p.min_amount}):', '\${p.min_amount}', (a) => buyPlan('\${p.id}', a))">Invest $\${parseFloat(p.min_amount).toLocaleString()}+</button></div>\`;
             });
+
             const supportLinks = document.getElementById('supportLinks'); supportLinks.innerHTML = \`<a href="\${data.settings.telegram_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#229ED9;"><i class="fab fa-telegram"></i> Telegram</a><a href="\${data.settings.whatsapp_link}" class="btn-grad no-underline" style="flex:1; padding:10px; font-size:0.7rem; background:#25D366;"><i class="fab fa-whatsapp"></i> WhatsApp</a>\`;
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
             data.transactions.forEach(tx => {
