@@ -105,9 +105,9 @@ function dashboardTemplate(role) {
           <h3 class="section-title" style="padding:2rem 2rem 0.5rem 2rem;"><i class="fas fa-history"></i> Global History</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="adminGlobalTxList"></tbody></table></div>
           <div class="pagination-bar">
-            <button class="page-btn" id="prevAdminPage" onclick="changeAdminPage(-1)"><i class="fas fa-chevron-left"></i> PREV</button>
+            <button class="page-btn" id="prevAdminPage" onclick="changeAdminPage(-1)"><i class="fas fa-chevron-left"></i> NEXT</button>
             <span id="adminPageInfo" style="font-size:0.7rem; font-weight:800; color:var(--text-muted);">Page 1</span>
-            <button class="page-btn" id="nextAdminPage" onclick="changeAdminPage(1)">NEXT <i class="fas fa-chevron-right"></i></button>
+            <button class="page-btn" id="nextAdminPage" onclick="changeAdminPage(1)">PREV <i class="fas fa-chevron-right"></i></button>
           </div>
         </div>
 
@@ -146,9 +146,9 @@ function dashboardTemplate(role) {
           <h3 class="section-title" style="padding:1.5rem;"><i class="fas fa-history"></i> Recent Activity</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><tbody id="userTxList"></tbody></table></div>
           <div class="pagination-bar">
-            <button class="page-btn" id="prevUserPage" onclick="changeUserPage(-1)"><i class="fas fa-chevron-left"></i> PREV</button>
+            <button class="page-btn" id="prevUserPage" onclick="changeUserPage(-1)"><i class="fas fa-chevron-left"></i> NEXT</button>
             <span id="userPageInfo" style="font-size:0.7rem; font-weight:800; color:var(--text-muted);">Page 1</span>
-            <button class="page-btn" id="nextUserPage" onclick="changeUserPage(1)">NEXT <i class="fas fa-chevron-right"></i></button>
+            <button class="page-btn" id="nextUserPage" onclick="changeUserPage(1)">PREV <i class="fas fa-chevron-right"></i></button>
           </div>
         </div>
 
@@ -285,7 +285,6 @@ function dashboardTemplate(role) {
         const amount = parseFloat(document.getElementById(inputId).value);
         if(!amount || amount <= 0) return showSnackbar("Invalid amount", "error");
         
-        // Frontend Validation
         const minKey = type === 'deposit' ? 'min_deposit' : 'min_withdrawal';
         const minVal = parseFloat(cachedSettings[minKey] || 0);
         if(amount < minVal) return showSnackbar(\`Minimum is $\${minVal.toLocaleString()}\`, "error");
