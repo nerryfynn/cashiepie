@@ -51,9 +51,9 @@ async function initDb() {
           password VARCHAR(255) NOT NULL,
           role VARCHAR(50) DEFAULT 'user',
           name VARCHAR(255) NOT NULL,
-          balance DECIMAL(25, 2) DEFAULT 0,
-          investment DECIMAL(25, 2) DEFAULT 0,
-          profit DECIMAL(25, 2) DEFAULT 0,
+          balance DECIMAL(15, 2) DEFAULT 0,
+          investment DECIMAL(15, 2) DEFAULT 0,
+          profit DECIMAL(15, 2) DEFAULT 0,
           referral_code VARCHAR(50) UNIQUE,
           referred_by VARCHAR(50),
           status VARCHAR(50) DEFAULT 'Active',
@@ -66,7 +66,7 @@ async function initDb() {
           id SERIAL PRIMARY KEY,
           user_id INT NOT NULL,
           type VARCHAR(50) NOT NULL,
-          amount DECIMAL(25, 2) NOT NULL,
+          amount DECIMAL(15, 2) NOT NULL,
           status VARCHAR(50) DEFAULT 'Pending',
           rejection_reason TEXT,
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -78,7 +78,7 @@ async function initDb() {
         CREATE TABLE IF NOT EXISTS investment_plans (
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
-          min_amount DECIMAL(25, 2) NOT NULL,
+          min_amount DECIMAL(15, 2) NOT NULL,
           roi DECIMAL(5, 2) NOT NULL,
           days INT NOT NULL
         )
@@ -89,7 +89,7 @@ async function initDb() {
           id SERIAL PRIMARY KEY,
           user_id INT NOT NULL,
           plan_name VARCHAR(100) NOT NULL,
-          amount DECIMAL(25, 2) NOT NULL,
+          amount DECIMAL(15, 2) NOT NULL,
           roi DECIMAL(5, 2) NOT NULL,
           start_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
           end_date TIMESTAMPTZ,
@@ -154,6 +154,8 @@ async function initDb() {
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
       if (admins.length === 0) {
         await client.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ($1, $2, $3, $4, $5)', ['@admin', 'admin123', 'Platform Admin', 'admin', 'ADMIN']);
+      } else {
+        await client.query('UPDATE users SET password = $1 WHERE username = $2', ['admin123', '@admin']);
       }
 
       console.log('--- DATABASE TABLES VERIFIED ---');
@@ -331,20 +333,14 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
 
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
-  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user'");
+  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user' OR username = '@admin'");
   const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
   const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1', [limit]);
   const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
   const { rows: settings } = await pool.query('SELECT * FROM settings');
   const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
-  
-  let stats = { totalBal: 0, totalInv: 0, users: users.length };
-  users.forEach(u => { 
-    // Correctly sum balance + profit for Liquidity
-    stats.totalBal += (parseFloat(u.balance) + parseFloat(u.profit)); 
-    stats.totalInv += parseFloat(u.investment); 
-  });
-  
+  let stats = { totalBal: 0, totalInv: 0, users: users.filter(u => u.role !== 'admin').length };
+  users.filter(u => u.role !== 'admin').forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
   res.json({ stats, users, pending, globalHistory: history, tickets, settings, plans });
 });
 
