@@ -493,8 +493,17 @@ app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error('UNHANDLED ROUTE ERROR:', err);
-  if (res.headersSent) return next(err);
-  res.status(500).json({ error: 'Server error. Please try again.' });
+  if (res && res.headersSent) return next(err);
+  
+  if (res && typeof res.status === 'function') {
+    res.status(500).json({ error: 'Server error. Please try again.' });
+  } else if (res && typeof res.end === 'function') {
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Server error. Please try again.' }));
+  } else {
+    next(err);
+  }
 });
 
 module.exports = app;
