@@ -30,7 +30,6 @@ app.set('trust proxy', 1);
 
 async function initDb() {
   try {
-    console.log('--- VERCEL POSTGRES SYNC START ---');
     const client = await pool.connect();
     try {
       await client.query(`
@@ -154,8 +153,6 @@ async function initDb() {
       const { rows: admins } = await client.query('SELECT * FROM users WHERE username = $1', ['@admin']);
       if (admins.length === 0) {
         await client.query('INSERT INTO users (username, password, name, role, referral_code) VALUES ($1, $2, $3, $4, $5)', ['@admin', 'admin123', 'Platform Admin', 'admin', 'ADMIN']);
-      } else {
-        await client.query('UPDATE users SET password = $1 WHERE username = $2', ['admin123', '@admin']);
       }
 
       console.log('--- DATABASE TABLES VERIFIED ---');
@@ -218,21 +215,15 @@ app.post('/api/logout', (req, res) => { req.session.destroy(() => res.json({ suc
 
 app.post('/api/deposit', checkAuth, async (req, res) => {
   const { amount } = req.body;
-  const { rows: s } = await pool.query("SELECT value FROM settings WHERE key_name = 'min_deposit'");
-  if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Min deposit is $${s[0].value}` });
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Deposit', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Deposit request sent' });
 });
 
 app.post('/api/withdraw', checkAuth, async (req, res) => {
   const { amount } = req.body;
-  const { rows: s } = await pool.query("SELECT value FROM settings WHERE key_name = 'min_withdrawal'");
-  if (amount < parseFloat(s[0].value)) return res.json({ success: false, message: `Min withdrawal is $${s[0].value}` });
-  
   const { rows: u } = await pool.query('SELECT balance, profit FROM users WHERE id = $1', [req.session.userId]);
   const totalAvailable = parseFloat(u[0].balance) + parseFloat(u[0].profit);
   if (totalAvailable < amount) return res.json({ success: false, message: 'Insufficient funds' });
-
   await pool.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, req.session.userId]);
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Withdrawal', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Withdrawal request sent' });
@@ -242,13 +233,9 @@ app.post('/api/plan/buy', checkAuth, async (req, res) => {
   const { planId, amount } = req.body;
   const { rows: plans } = await pool.query('SELECT * FROM investment_plans WHERE id = $1', [planId]);
   if (plans.length === 0) return res.json({ success: false, message: 'Plan not found' });
-  
   const plan = plans[0];
-  if (amount < parseFloat(plan.min_amount)) return res.json({ success: false, message: `Minimum for this plan is $${plan.min_amount}` });
-
   const { rows: u } = await pool.query('SELECT balance FROM users WHERE id = $1', [req.session.userId]);
   if (parseFloat(u[0].balance) < amount) return res.json({ success: false, message: 'Insufficient balance' });
-
   const endDate = new Date(); endDate.setDate(endDate.getDate() + plan.days);
   await pool.query('UPDATE users SET balance = balance - $1, investment = investment + $2 WHERE id = $3', [amount, amount, req.session.userId]);
   await pool.query('INSERT INTO active_plans (user_id, plan_name, amount, roi, end_date) VALUES ($1, $2, $3, $4, $5)', [req.session.userId, plan.name, amount, plan.roi, endDate]);
@@ -262,9 +249,9 @@ app.post('/api/ticket/create', checkAuth, async (req, res) => {
 });
 
 app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
-  const { txId, action, reason } = req.body;
+  const { txId, action } = req.body;
   const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE id = $1', [txId]);
-  if (txs.length === 0 || txs[0].status !== 'Pending') return res.json({ success: false });
+  if (txs.length === 0 || txs[0].status !== 'Pending') return res.json({ success: false, message: 'Already processed' });
   const tx = txs[0];
 
   if (action === 'Approved') {
@@ -282,8 +269,7 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
       await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
     }
   }
-  
-  await pool.query('UPDATE transactions SET status = $1, rejection_reason = $2 WHERE id = $3', [action, reason || null, txId]);
+  await pool.query('UPDATE transactions SET status = $1 WHERE id = $2', [action, txId]);
   res.json({ success: true });
 });
 
@@ -301,11 +287,8 @@ app.post('/api/admin/plans/update', checkAdmin, async (req, res) => {
 
 app.post('/api/admin/user/update', checkAdmin, async (req, res) => {
   const { userId, name, password, balance, profit, investment, status } = req.body;
-  if (password) {
-    await pool.query('UPDATE users SET name = $1, password = $2, balance = $3, profit = $4, investment = $5, status = $6 WHERE id = $7', [name, password, balance, profit, investment, status, userId]);
-  } else {
-    await pool.query('UPDATE users SET name = $1, balance = $2, profit = $3, investment = $4, status = $5 WHERE id = $6', [name, balance, profit, investment, status, userId]);
-  }
+  if (password) await pool.query('UPDATE users SET name = $1, password = $2, balance = $3, profit = $4, investment = $5, status = $6 WHERE id = $7', [name, password, balance, profit, investment, status, userId]);
+  else await pool.query('UPDATE users SET name = $1, balance = $2, profit = $3, investment = $4, status = $5 WHERE id = $6', [name, balance, profit, investment, status, userId]);
   res.json({ success: true });
 });
 
@@ -333,14 +316,14 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
 
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
-  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user' OR username = '@admin'");
+  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user'");
   const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
   const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1', [limit]);
   const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
   const { rows: settings } = await pool.query('SELECT * FROM settings');
   const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
-  let stats = { totalBal: 0, totalInv: 0, users: users.filter(u => u.role !== 'admin').length };
-  users.filter(u => u.role !== 'admin').forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
+  let stats = { totalBal: 0, totalInv: 0, users: users.length };
+  users.forEach(u => { stats.totalBal += parseFloat(u.balance); stats.totalInv += parseFloat(u.investment); });
   res.json({ stats, users, pending, globalHistory: history, tickets, settings, plans });
 });
 
