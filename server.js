@@ -370,7 +370,7 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
     const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [req.session.userId, limit, offset]);
     const { rows: totalTxs } = await pool.query('SELECT count(*) FROM transactions WHERE user_id = $1', [req.session.userId]);
     
-    const { rows: tickets } = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC');
+    const { rows: tickets } = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC', [req.session.userId]);
     const { rows: settings } = await pool.query('SELECT * FROM settings');
     const { rows: plans } = await pool.query('SELECT * FROM investment_plans ORDER BY min_amount ASC');
     const setObj = {}; settings.forEach(s => setObj[s.key_name] = s.value);
