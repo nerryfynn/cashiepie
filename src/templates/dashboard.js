@@ -39,6 +39,8 @@ function dashboardTemplate(role) {
       .page-btn:not(:disabled):hover { border-color: var(--primary); color: var(--primary); }
 
       .sort-select { background: #f1f5f9; border: 1px solid var(--border); border-radius: 12px; padding: 6px 12px; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); cursor: pointer; }
+      .profile-trigger { cursor: pointer; transition: transform 0.2s; }
+      .profile-trigger:hover { transform: scale(1.05); border-color: var(--primary) !important; }
 
       @media (max-width: 600px) { 
         .main-container { padding: 1.2rem; padding-bottom: 110px; }
@@ -72,7 +74,7 @@ function dashboardTemplate(role) {
        </div>
        <div style="display:flex; align-items:center; gap:10px;">
          <span id="userName" class="truncate-phone" style="font-weight:800; font-size:0.85rem; color:var(--text-muted);">...</span>
-         <div style="width:38px; height:38px; background:var(--dark); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.9rem; border:2px solid white; box-shadow:var(--shadow-sm);" id="userInitial">?</div>
+         <div onclick="openPanel('profilePanel')" class="profile-trigger" style="width:38px; height:38px; background:var(--dark); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.9rem; border:2px solid white; box-shadow:var(--shadow-sm);" id="userInitial">?</div>
        </div>
     </header>
 
@@ -84,7 +86,13 @@ function dashboardTemplate(role) {
         </div>
 
         <div class="glass-card" style="margin-bottom:2.5rem; overflow:hidden;">
-          <h3 class="section-title" style="padding:2rem 2rem 0.5rem 2rem; color:#ef4444;"><i class="fas fa-bolt"></i> Urgent Approvals</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:2rem 2rem 0.5rem 2rem;">
+            <h3 class="section-title" style="margin:0; color:#ef4444;"><i class="fas fa-bolt"></i> Urgent Approvals</h3>
+            <select class="sort-select" id="pendingSort" onchange="loadData()">
+              <option value="latest">Latest First</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </div>
           <div style="overflow-x:auto;"><table class="cpie-table"><tbody id="pendingTxs"></tbody></table></div>
           <div class="pagination-bar">
             <button class="page-btn" id="prevPendPage" onclick="changePendingPage(-1)"><i class="fas fa-chevron-left"></i> NEXT</button>
@@ -194,6 +202,16 @@ function dashboardTemplate(role) {
     </nav>
 
     <!-- Panels -->
+    <div id="profilePanel" class="slide-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-weight:900;">Account Settings</h2>
+        <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="input-group"><label>Full Name</label><input type="text" id="profName" class="panel-input"></div>
+      <div class="input-group"><label>New Password (Optional)</label><input type="text" id="profPass" class="panel-input" placeholder="Leave blank to keep current"></div>
+      <button class="btn-grad" style="width:100%;" onclick="saveProfile()">Save Changes <i class="fas fa-save"></i></button>
+    </div>
+
     <div id="depositPanel" class="slide-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
         <h2 style="font-weight:900;">Add Funds</h2>
@@ -287,6 +305,15 @@ function dashboardTemplate(role) {
         const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text);
         showSnackbar(label + " copied!", "success");
+      }
+
+      async function saveProfile() {
+        const name = document.getElementById('profName').value;
+        const password = document.getElementById('profPass').value;
+        if(!name) return showSnackbar("Name is required", "error");
+        const res = await fetch('/api/user/profile/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name, password }) });
+        const data = await res.json();
+        if(data.success) { showSnackbar("Profile updated", "success"); closePanel(); loadData(); }
       }
 
       function openBankEdit() { openPanel('bankEditPanel'); }
@@ -409,7 +436,9 @@ function dashboardTemplate(role) {
         try {
           if('${role}' === 'admin') {
             const sort = document.getElementById('investorSort').value;
-            const res = await fetch(\`/api/admin/data?page=\${adminPage}&pendingPage=\${pendingPage}&sort=\${sort}\`);
+            const hSort = document.getElementById('historySort').value;
+            const pSort = document.getElementById('pendingSort').value;
+            const res = await fetch(\`/api/admin/data?page=\${adminPage}&pendingPage=\${pendingPage}&sort=\${sort}&pendingSort=\${pSort}\`);
             const data = await res.json();
             if(!data || !data.stats) return;
 
@@ -465,6 +494,7 @@ function dashboardTemplate(role) {
 
             document.getElementById('siteName').innerText = data.settings.platform_name;
             document.getElementById('userName').innerText = data.user.name;
+            document.getElementById('profName').value = data.user.name;
             document.getElementById('userInitial').innerText = data.user.name.charAt(0);
             document.getElementById('userBalance').innerText = '$' + parseFloat(data.user.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
             document.getElementById('userInv').innerText = '$' + parseFloat(data.user.investment || 0).toLocaleString();

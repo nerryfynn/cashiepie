@@ -245,6 +245,13 @@ app.post('/api/user/bank/update', checkAuth, async (req, res) => {
   res.json({ success: true, message: 'Bank details updated' });
 });
 
+app.post('/api/user/profile/update', checkAuth, async (req, res) => {
+  const { name, password } = req.body;
+  if(password) await pool.query('UPDATE users SET name = $1, password = $2 WHERE id = $3', [name, password, req.session.userId]);
+  else await pool.query('UPDATE users SET name = $1 WHERE id = $2', [name, req.session.userId]);
+  res.json({ success: true, message: 'Profile updated' });
+});
+
 app.post('/api/plan/buy', checkAuth, async (req, res) => {
   const { planId, amount } = req.body;
   const { rows: plans } = await pool.query('SELECT * FROM investment_plans WHERE id = $1', [planId]);
@@ -320,6 +327,7 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
   const sort = req.query.sort || 'latest';
+  const pendingSort = req.query.pendingSort || 'latest';
 
   const pendingPage = parseInt(req.query.pendingPage) || 1;
   const pendingLimit = 5;
@@ -331,7 +339,7 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
 
   const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY ${userOrderBy}`);
   
-  const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\' ORDER BY t.created_at ASC LIMIT $1 OFFSET $2', [pendingLimit, pendingOffset]);
+  const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at ${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
   const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
   
   const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at ${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
