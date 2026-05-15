@@ -18,15 +18,18 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.set('trust proxy', 1);
 app.use(session({
   store: new pgSession({ pool: pool, tableName: 'session' }),
   secret: process.env.SESSION_SECRET || 'cashiepie_pro_secure_session_2026',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: 'lax'
+  }
 }));
-
-app.set('trust proxy', 1);
 
 async function initDb() {
   try {
