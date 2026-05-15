@@ -344,8 +344,8 @@ function dashboardTemplate(role) {
       }
 
       async function buyPlan(planId, amount, min, max) {
-        if(amount < min) return showSnackbar(`Minimum for this plan is $${min.toLocaleString()}`, "error");
-        if(max > 0 && amount > max) return showSnackbar(`Maximum for this plan is $${max.toLocaleString()}`, "error");
+        if(amount < min) return showSnackbar(\`Minimum for this plan is $\${min.toLocaleString()}\`, "error");
+        if(max > 0 && amount > max) return showSnackbar(\`Maximum for this plan is $\${max.toLocaleString()}\`, "error");
         const res = await fetch('/api/plan/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ planId, amount:parseFloat(amount) }) });
         const data = await res.json();
         if(data.success) { showSnackbar(data.message, "success"); loadData(); }
