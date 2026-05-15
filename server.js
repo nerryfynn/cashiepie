@@ -10,6 +10,15 @@ const dashboardTemplate = require('./src/templates/dashboard');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const wrapAsync = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+const originalGet = app.get.bind(app);
+const originalPost = app.post.bind(app);
+app.get = (path, handler) => originalGet(path, wrapAsync(handler));
+app.post = (path, handler) => originalPost(path, wrapAsync(handler));
+
 const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL_POSTGRES_URL;
 if (!dbUrl) {
   console.error('CRITICAL CONFIG ERROR: Missing Postgres connection URL. Set POSTGRES_URL or DATABASE_URL.');
@@ -470,6 +479,12 @@ app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
   const { ticketId, reply } = req.body;
   await pool.query("UPDATE tickets SET reply = $1, status = 'Closed' WHERE id = $2", [reply, ticketId]);
   res.json({ success: true });
+});
+
+app.use((err, req, res, next) => {
+  console.error('UNHANDLED ROUTE ERROR:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Server error. Please try again.' });
 });
 
 module.exports = app;
