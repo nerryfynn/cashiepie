@@ -56,6 +56,9 @@ async function initDb() {
           referral_code VARCHAR(50) UNIQUE,
           referred_by VARCHAR(50),
           status VARCHAR(50) DEFAULT 'Active',
+          bank_name VARCHAR(255),
+          account_name VARCHAR(255),
+          account_number VARCHAR(255),
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
       `);
@@ -124,9 +127,6 @@ async function initDb() {
         ['min_deposit', '500'],
         ['referral_bonus_percent', '10'],
         ['withdrawal_fee_percent', '2'],
-        ['bank_name', 'Global Bank'],
-        ['account_name', 'CashiePie Ecosystem'],
-        ['account_number', '1234567890'],
         ['support_email', 'support@cashiepie.com'],
         ['telegram_link', 'https://t.me/cashiepie'],
         ['whatsapp_link', 'https://wa.me/123456789'],
@@ -221,12 +221,21 @@ app.post('/api/deposit', checkAuth, async (req, res) => {
 
 app.post('/api/withdraw', checkAuth, async (req, res) => {
   const { amount } = req.body;
-  const { rows: u } = await pool.query('SELECT balance, profit FROM users WHERE id = $1', [req.session.userId]);
+  const { rows: u } = await pool.query('SELECT balance, profit, bank_name FROM users WHERE id = $1', [req.session.userId]);
+  if (!u[0].bank_name) return res.json({ success: false, message: 'Please set your bank details first' });
+  
   const totalAvailable = parseFloat(u[0].balance) + parseFloat(u[0].profit);
   if (totalAvailable < amount) return res.json({ success: false, message: 'Insufficient funds' });
+  
   await pool.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, req.session.userId]);
   await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Withdrawal', $2, 'Pending')", [req.session.userId, amount]);
   res.json({ success: true, message: 'Withdrawal request sent' });
+});
+
+app.post('/api/user/bank/update', checkAuth, async (req, res) => {
+  const { bank_name, account_name, account_number } = req.body;
+  await pool.query('UPDATE users SET bank_name = $1, account_name = $2, account_number = $3 WHERE id = $4', [bank_name, account_name, account_number, req.session.userId]);
+  res.json({ success: true, message: 'Bank details updated' });
 });
 
 app.post('/api/plan/buy', checkAuth, async (req, res) => {

@@ -26,6 +26,7 @@ function dashboardTemplate(role) {
       .admin-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
       .admin-stat-item { background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); }
 
+      .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; }
       .truncate-phone { display: inline-block; }
       
       .cpie-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); z-index: 9000; display: none !important; align-items: center; justify-content: center; padding: 20px; }
@@ -148,9 +149,13 @@ function dashboardTemplate(role) {
       `}
     </div>
 
-    <nav class="sticky-footer">
+    <nav class="sticky-footer" style="display: flex; justify-content: space-around; align-items: center; padding: 10px 0;">
       <a class="footer-item active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-home"></i><span>Home</span></a>
-      <a class="footer-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Exit</span></a>
+      ${role === 'user' ? `
+        <a class="footer-item" onclick="openPanel('depositPanel')"><i class="fas fa-plus-circle"></i><span>Deposit</span></a>
+        <a class="footer-item" onclick="openPanel('withdrawPanel')"><i class="fas fa-arrow-circle-up"></i><span>Withdraw</span></a>
+      ` : ''}
+      <a class="footer-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt" style="color:#ef4444;"></i><span>Exit</span></a>
     </nav>
 
     <!-- Panels -->
@@ -169,7 +174,13 @@ function dashboardTemplate(role) {
         <h2 style="font-weight:900;">Withdraw</h2>
         <button onclick="closePanel()" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
       </div>
-      <div class="bank-box" id="bankInfoBox">...</div>
+      <div class="glass-card" style="padding:1.5rem; margin-bottom:1.5rem; border:1px dashed var(--primary);">
+        <h4 style="font-size:0.65rem; text-transform:uppercase; opacity:0.6; font-weight:800; margin-bottom:10px;">Your Payout Bank</h4>
+        <div id="bankDisplay">
+          <p style="font-size:0.9rem; font-weight:900; color:var(--dark);">No bank set</p>
+          <button class="toggle-link" style="font-size:0.7rem; margin-top:5px;" onclick="openBankEdit()">Set Bank Details <i class="fas fa-edit"></i></button>
+        </div>
+      </div>
       <input type="number" id="wdAmt" class="panel-input" placeholder="Amount in USD">
       <button class="btn-grad" style="width:100%;" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
     </div>
@@ -221,6 +232,21 @@ function dashboardTemplate(role) {
         const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text);
         showSnackbar(label + " copied!", "success");
+      }
+
+      function openBankEdit() {
+        showPrompt("Bank Details", "Enter your Bank Name:", "Bank Name", (bank) => {
+          if(!bank) return;
+          showPrompt("Account Holder", "Enter Account Name:", "Account Name", (accName) => {
+            if(!accName) return;
+            showPrompt("Account Number", "Enter Account Number:", "Number", async (accNum) => {
+              if(!accNum) return;
+              const res = await fetch('/api/user/bank/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bank_name:bank, account_name:accName, account_number:accNum }) });
+              const data = await res.json();
+              if(data.success) { showSnackbar("Bank updated", "success"); loadData(); }
+            });
+          });
+        });
       }
 
       async function handleLogout() { await fetch('/api/logout', { method:'POST' }); window.location.reload(); }
@@ -320,8 +346,8 @@ function dashboardTemplate(role) {
             const res = await fetch(\`/api/admin/data?limit=\${historyLimit}\`);
             const data = await res.json();
             document.getElementById('adminStats').innerHTML = \`
-              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div style="font-size:1.4rem; font-weight:900;">$\${data.stats.totalBal.toLocaleString()}</div></div>
-              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">PRINCIPAL</p><div style="font-size:1.4rem; font-weight:900;">$\${data.stats.totalInv.toLocaleString()}</div></div>
+              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">LIQUIDITY</p><div style="font-size:1.4rem; font-weight:900;">$\${parseFloat(data.stats.totalBal).toLocaleString()}</div></div>
+              <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">PRINCIPAL</p><div style="font-size:1.4rem; font-weight:900;">$\${parseFloat(data.stats.totalInv).toLocaleString()}</div></div>
               <div class="admin-stat-item"><p style="opacity:0.6; font-size:0.6rem; font-weight:900;">USERS</p><div style="font-size:1.4rem; font-weight:900;">\${data.stats.users}</div></div>
             \`;
             const pendingTbody = document.getElementById('pendingTxs'); pendingTbody.innerHTML = '';
@@ -330,8 +356,7 @@ function dashboardTemplate(role) {
             });
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             data.settings.forEach(s => {
-              if(s.key_name === 'eth_address' || s.key_name === 'usdt_trc20') return;
-              settingsDiv.innerHTML += \`<div class="setting-item" style="background:#fcfcfc; border:1px solid var(--border); padding:1rem; border-radius:18px; display:flex; justify-content:space-between; align-items:center;"><div><strong style="font-size:0.65rem;">\${s.key_name.toUpperCase()}</strong><br><small style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="showPrompt('Edit Setting', 'Update \${s.key_name}', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
+              settingsDiv.innerHTML += \`<div class="setting-item" style="background:#fcfcfc; border:1px solid var(--border); padding:1rem; border-radius:18px; display:flex; justify-content:space-between; align-items:center;"><div><strong style="font-size:0.65rem;">\${s.key_name.toUpperCase()}</strong><br><small class="truncate" style="color:var(--text-muted);">\${s.value}</small></div><button class="btn-grad" style="padding:6px 12px; font-size:0.65rem;" onclick="showPrompt('Edit Setting', 'Update \${s.key_name}', '\${s.value}', (v) => updateSetting('\${s.key_name}', v))">EDIT</button></div>\`;
             });
             const planDiv = document.getElementById('adminPlanList'); planDiv.innerHTML = '';
             data.plans.forEach(p => {
@@ -355,12 +380,16 @@ function dashboardTemplate(role) {
             document.getElementById('siteName').innerText = data.settings.platform_name;
             document.getElementById('userName').innerText = data.user.name;
             document.getElementById('userInitial').innerText = data.user.name.charAt(0);
-            document.getElementById('userBalance').innerText = '$' + data.user.balance.toLocaleString();
-            document.getElementById('userInv').innerText = '$' + data.user.investment.toLocaleString();
-            document.getElementById('userProf').innerText = '$' + data.user.profit.toLocaleString();
+            document.getElementById('userBalance').innerText = '$' + parseFloat(data.user.balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
+            document.getElementById('userInv').innerText = '$' + parseFloat(data.user.investment).toLocaleString();
+            document.getElementById('userProf').innerText = '$' + parseFloat(data.user.profit).toLocaleString();
             
-            document.getElementById('bankInfoBox').innerHTML = \`<p style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Bank Payout Details</p><h4 style="font-weight:900; margin:5px 0;">\${data.settings.bank_name}</h4><p style="font-size:0.8rem; font-weight:600;">\${data.settings.account_name}<br>\${data.settings.account_number}</p>\`;
-            document.getElementById('cryptoList').innerHTML = \`<div class="bank-box" style="margin-bottom:1rem;"><p style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">BTC ADDRESS</p><code id="btc_addr" style="font-size:0.7rem; font-weight:900;">\${data.settings.btc_address}</code><br><button onclick="copyText('btc_addr', 'BTC')" class="toggle-link" style="font-size:0.65rem; margin-top:5px;">Copy</button></div>\`;
+            const bankDisplay = document.getElementById('bankDisplay');
+            if(data.user.bank_name) {
+              bankDisplay.innerHTML = \`<p style="font-size:0.9rem; font-weight:900; color:var(--dark);">\${data.user.bank_name}</p><p style="font-size:0.75rem; font-weight:700; opacity:0.6;">\${data.user.account_name} • \${data.user.account_number}</p><button class="toggle-link" style="font-size:0.7rem; margin-top:5px;" onclick="openBankEdit()">Change Details <i class="fas fa-edit"></i></button>\`;
+            }
+
+            document.getElementById('cryptoList').innerHTML = \`<div class="glass-card" style="padding:1.5rem; margin-bottom:1.5rem; border:1px solid #fed7aa; background:#fff7ed; text-align:center;"><p style="font-size:0.65rem; font-weight:800; color:#ea580c; text-transform:uppercase; margin-bottom:10px;">BITCOIN (BTC) ADDRESS</p><code id="btc_addr" style="font-size:0.8rem; font-weight:900; color:var(--dark); word-break:break-all; display:block; margin-bottom:15px;">\${data.settings.btc_address}</code><button onclick="copyText('btc_addr', 'BTC')" class="btn-grad" style="padding:8px 20px; font-size:0.75rem; background:#ea580c; box-shadow:none;">COPY ADDRESS <i class="fas fa-copy"></i></button></div>\`;
             
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
             data.plans.forEach(p => {
