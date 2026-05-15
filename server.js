@@ -21,6 +21,17 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+const dbReady = initDb();
+app.use(async (req, res, next) => {
+  try {
+    await dbReady;
+    next();
+  } catch (err) {
+    console.error('DB initialization pending or failed:', err);
+    res.status(503).json({ error: 'Server is not ready. Please try again shortly.' });
+  }
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -37,17 +48,6 @@ app.use(session({
     maxAge: 30 * 24 * 60 * 60 * 1000
   }
 }));
-
-const dbReady = initDb();
-app.use(async (req, res, next) => {
-  try {
-    await dbReady;
-    next();
-  } catch (err) {
-    console.error('DB initialization pending or failed:', err);
-    res.status(503).json({ error: 'Server is not ready. Please try again shortly.' });
-  }
-});
 
 async function initDb() {
   try {
@@ -206,12 +206,23 @@ if (!process.env.VERCEL && require.main === module) {
 }
 
 app.get('/', async (req, res) => {
-  if (req.session.userId) res.send(dashboardTemplate(req.session.role));
-  else {
-    const { rows } = await pool.query("SELECT value FROM settings WHERE key_name = 'whatsapp_link'");
-    const whatsapp = rows[0]?.value || '123456';
-    res.send(loginTemplate(whatsapp));
+  const { rows } = await pool.query("SELECT value FROM settings WHERE key_name = 'whatsapp_link'");
+  const whatsapp = rows[0]?.value || '123456';
+
+  if (req.session.userId) {
+    try {
+      const { rows: userCheck } = await pool.query('SELECT id FROM users WHERE id = $1', [req.session.userId]);
+      if (userCheck.length === 0) {
+        return req.session.destroy(() => res.send(loginTemplate(whatsapp)));
+      }
+    } catch (err) {
+      console.error('Root user validation failed:', err);
+      return res.send(loginTemplate(whatsapp));
+    }
+    return res.send(dashboardTemplate(req.session.role));
   }
+
+  res.send(loginTemplate(whatsapp));
 });
 
 app.post('/api/login', async (req, res) => {
