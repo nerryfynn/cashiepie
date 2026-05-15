@@ -75,7 +75,6 @@ async function initDb() {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
-      // FORCE ALTER TABLE
       await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rejection_reason TEXT`).catch(() => {});
 
       await client.query(`
@@ -306,6 +305,12 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
 
   try {
     const { rows: u } = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
+    if (u.length === 0) {
+      console.log(`[SESSION ERROR] User ID \${req.session.userId} not found in DB. Clearing session.`);
+      req.session.destroy();
+      return res.status(401).json({ error: 'Session Expired' });
+    }
+    
     const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [req.session.userId, limit, offset]);
     const { rows: totalTxs } = await pool.query('SELECT count(*) FROM transactions WHERE user_id = $1', [req.session.userId]);
     
@@ -344,12 +349,12 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
     if(sort === 'oldest') userOrderBy = 'created_at ASC';
     else if(sort === 'az') userOrderBy = 'name ASC';
 
-    const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY ${userOrderBy}`);
+    const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY \${userOrderBy}`);
     
-    const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at ${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
-    const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
+    const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at \${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
+    const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \\'Pending\\'');
     
-    const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at ${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
+    const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at \${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
     const { rows: totalHist } = await pool.query('SELECT count(*) FROM transactions');
 
     const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
@@ -404,6 +409,6 @@ app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
+app.listen(PORT, () => console.log(`CashiePie running on port \${PORT}`));
 
 module.exports = app;

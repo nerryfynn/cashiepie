@@ -487,9 +487,14 @@ function dashboardTemplate(role) {
             });
           } else {
             const res = await fetch(\`/api/user/data?page=\${userPage}&limit=3\`);
+            if(res.status === 401) {
+              window.location.reload(); 
+              return;
+            }
             const data = await res.json();
             if(!data || !data.user) {
-               showSnackbar("Failed to load user data. Please refresh.", "error");
+               showSnackbar("Failed to load user data. Re-syncing...", "error");
+               setTimeout(() => window.location.reload(), 2000);
                return;
             }
             cachedSettings = data.settings;
@@ -514,12 +519,25 @@ function dashboardTemplate(role) {
             
             const userPlanList = document.getElementById('userPlanList'); userPlanList.innerHTML = '';
             (data.plans || []).forEach(p => {
-              const pName = p.name;
-              const pRoi = p.roi;
-              const pDays = p.days;
-              const pMin = parseFloat(p.min_amount);
-              const pId = p.id;
-              userPlanList.innerHTML += '<div class="plan-item" style="padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;"><div><strong>' + pName + '</strong><br><small style="color:var(--text-muted); font-weight:700;">' + pRoi + '% Return • ' + pDays + 'd</small></div><button class="btn-grad" style="padding:10px 20px; font-size:0.75rem;" onclick="showPrompt(\\'Invest\\', \\'Min $' + pMin.toLocaleString() + '\\', \\'' + pMin + '\\', (a) => buyPlan(\\'' + pId + '\\', a, ' + pMin + '))">Invest $' + pMin.toLocaleString() + '+</button></div>';
+               const pName = p.name;
+               const pRoi = p.roi;
+               const pDays = p.days;
+               const pMin = parseFloat(p.min_amount);
+               const pId = p.id;
+               
+               const planCard = document.createElement('div');
+               planCard.className = 'plan-item';
+               planCard.style = 'padding:1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;';
+               planCard.innerHTML = '<div><strong>' + pName + '</strong><br><small style="color:var(--text-muted); font-weight:700;">' + pRoi + '% Return • ' + pDays + 'd</small></div>';
+               
+               const buyBtn = document.createElement('button');
+               buyBtn.className = 'btn-grad';
+               buyBtn.style = 'padding:10px 20px; font-size:0.75rem;';
+               buyBtn.innerText = 'Invest $' + pMin.toLocaleString() + '+';
+               buyBtn.onclick = () => showPrompt('Invest', 'Min $' + pMin.toLocaleString(), pMin, (a) => buyPlan(pId, a, pMin));
+               
+               planCard.appendChild(buyBtn);
+               userPlanList.appendChild(planCard);
             });
             
             const histTbody = document.getElementById('userTxList'); histTbody.innerHTML = '';
@@ -539,7 +557,6 @@ function dashboardTemplate(role) {
           }
         } catch(e) { 
           console.error("BROWSER SCRIPT ERROR:", e);
-          showSnackbar("Dashboard update failed. Check console.", "error");
         }
       }
       loadData();
