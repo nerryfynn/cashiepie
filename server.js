@@ -306,7 +306,6 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
   try {
     const { rows: u } = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
     if (u.length === 0) {
-      console.log(`[SESSION ERROR] User ID \${req.session.userId} not found in DB. Clearing session.`);
       req.session.destroy();
       return res.status(401).json({ error: 'Session Expired' });
     }
@@ -328,7 +327,6 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
       plans 
     });
   } catch (err) {
-    console.error('USER DATA FETCH ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -349,12 +347,12 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
     if(sort === 'oldest') userOrderBy = 'created_at ASC';
     else if(sort === 'az') userOrderBy = 'name ASC';
 
-    const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY \${userOrderBy}`);
+    const { rows: users } = await pool.query(`SELECT * FROM users WHERE role = 'user' ORDER BY ${userOrderBy}`);
     
-    const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at \${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
-    const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \\'Pending\\'');
+    const { rows: pending } = await pool.query(`SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'Pending' ORDER BY t.created_at ${pendingSort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [pendingLimit, pendingOffset]);
+    const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
     
-    const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at \${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
+    const { rows: history } = await pool.query(`SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at ${sort === 'oldest' ? 'ASC' : 'DESC'} LIMIT $1 OFFSET $2`, [limit, offset]);
     const { rows: totalHist } = await pool.query('SELECT count(*) FROM transactions');
 
     const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
@@ -373,7 +371,6 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
       tickets, settings, plans 
     });
   } catch (err) {
-    console.error('ADMIN DATA FETCH ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -409,6 +406,6 @@ app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(PORT, () => console.log(`CashiePie running on port \${PORT}`));
+app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
 
 module.exports = app;
