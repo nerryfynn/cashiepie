@@ -320,8 +320,14 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
 
+  const pendingPage = parseInt(req.query.pendingPage) || 1;
+  const pendingLimit = 5;
+  const pendingOffset = (pendingPage - 1) * pendingLimit;
+
   const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user' ORDER BY created_at DESC");
-  const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
+  
+  const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\' ORDER BY t.created_at ASC LIMIT $1 OFFSET $2', [pendingLimit, pendingOffset]);
+  const { rows: totalPending } = await pool.query('SELECT count(*) FROM transactions WHERE status = \'Pending\'');
   
   const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1 OFFSET $2', [limit, offset]);
   const { rows: totalHist } = await pool.query('SELECT count(*) FROM transactions');
@@ -334,7 +340,9 @@ app.get('/api/admin/data', checkAdmin, async (req, res) => {
   users.forEach(u => { stats.totalBal += parseFloat(u.balance || 0); stats.totalInv += parseFloat(u.investment || 0); });
   
   res.json({ 
-    stats, users, pending, 
+    stats, users, 
+    pending, 
+    totalPending: parseInt(totalPending[0].count),
     globalHistory: history, 
     totalHistory: parseInt(totalHist[0].count),
     tickets, settings, plans 

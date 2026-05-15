@@ -84,6 +84,11 @@ function dashboardTemplate(role) {
         <div class="glass-card" style="margin-bottom:2.5rem; overflow:hidden;">
           <h3 class="section-title" style="padding:2rem 2rem 0.5rem 2rem; color:#ef4444;"><i class="fas fa-bolt"></i> Urgent Approvals</h3>
           <div style="overflow-x:auto;"><table class="cpie-table"><tbody id="pendingTxs"></tbody></table></div>
+          <div class="pagination-bar">
+            <button class="page-btn" id="prevPendPage" onclick="changePendingPage(-1)"><i class="fas fa-chevron-left"></i> NEXT</button>
+            <span id="pendPageInfo" style="font-size:0.7rem; font-weight:800; color:var(--text-muted);">Page 1</span>
+            <button class="page-btn" id="nextPendPage" onclick="changePendingPage(1)">PREV <i class="fas fa-chevron-right"></i></button>
+          </div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2.5rem; padding:2rem;">
@@ -229,6 +234,7 @@ function dashboardTemplate(role) {
     <script>
       let userPage = 1;
       let adminPage = 1;
+      let pendingPage = 1;
       let cachedSettings = {};
 
       function showSnackbar(msg, type) {
@@ -326,6 +332,7 @@ function dashboardTemplate(role) {
 
       function changeUserPage(dir) { userPage += dir; if(userPage < 1) userPage = 1; loadData(); }
       function changeAdminPage(dir) { adminPage += dir; if(adminPage < 1) adminPage = 1; loadData(); }
+      function changePendingPage(dir) { pendingPage += dir; if(pendingPage < 1) pendingPage = 1; loadData(); }
 
       async function updateSetting(key, value) {
         const res = await fetch('/api/admin/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ key, value }) });
@@ -386,7 +393,7 @@ function dashboardTemplate(role) {
       async function loadData() {
         try {
           if('${role}' === 'admin') {
-            const res = await fetch(\`/api/admin/data?page=\${adminPage}&limit=10\`);
+            const res = await fetch(\`/api/admin/data?page=\${adminPage}&pendingPage=\${pendingPage}\`);
             const data = await res.json();
             if(!data || !data.stats) return;
 
@@ -401,6 +408,9 @@ function dashboardTemplate(role) {
               const bankInfo = tx.type === 'Withdrawal' ? \`<div style="margin-top:8px; padding:10px; background:#f1f5f9; border-radius:12px; font-size:0.7rem; border-left:4px solid var(--primary);"><strong>PAYOUT TO:</strong><br>\${tx.bank_name || 'No Bank'}<br>Acc: \${tx.account_number || '-'}<br>Name: \${tx.account_name || '-'}</div>\` : '';
               pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small>\${bankInfo}</td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><div style="display:flex; gap:8px;"><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem;" onclick="processRequest('\${tx.id}', 'Approved')">OK</button><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem; background:#ef4444;" onclick="processRequest('\${tx.id}', 'Rejected')">REJ</button></div></td></tr>\`;
             });
+            document.getElementById('prevPendPage').disabled = (pendingPage === 1);
+            document.getElementById('nextPendPage').disabled = (data.pending.length < 5 && pendingPage * 5 >= data.totalPending);
+            document.getElementById('pendPageInfo').innerText = \`Page \${pendingPage}\`;
 
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             (data.settings || []).forEach(s => {
