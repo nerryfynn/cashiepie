@@ -10,24 +10,31 @@ const dashboardTemplate = require('./src/templates/dashboard');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL_POSTGRES_URL;
+if (!dbUrl) {
+  console.error('CRITICAL CONFIG ERROR: Missing Postgres connection URL. Set POSTGRES_URL or DATABASE_URL.');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString: dbUrl,
   ssl: { rejectUnauthorized: false }
 });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 app.use(session({
   store: new pgSession({ pool: pool, tableName: 'session' }),
+  proxy: true,
   secret: process.env.SESSION_SECRET || 'cashiepie_pro_secure_session_2026',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000
   }
 }));
 
@@ -164,7 +171,7 @@ async function initDb() {
       client.release();
     }
     setInterval(processMaturity, 10 * 60 * 1000);
-  } catch (err) { console.error('CRITICAL DATABASE ERROR:', err.message); }
+  } catch (err) { console.error('CRITICAL DATABASE ERROR:', err); throw err; }
 }
 
 async function processMaturity() {
@@ -178,7 +185,12 @@ async function processMaturity() {
   } catch (e) { console.error('Maturity Error:', e); }
 }
 
-initDb();
+initDb().then(() => {
+  app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
+}).catch((err) => {
+  console.error('Initialization failed:', err);
+  process.exit(1);
+});
 
 app.get('/', async (req, res) => {
   if (req.session.userId) res.send(dashboardTemplate(req.session.role));
@@ -408,7 +420,5 @@ app.post('/api/admin/ticket/reply', checkAdmin, async (req, res) => {
   await pool.query("UPDATE tickets SET reply = $1, status = 'Closed' WHERE id = $2", [reply, ticketId]);
   res.json({ success: true });
 });
-
-app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
 
 module.exports = app;
