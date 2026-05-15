@@ -38,6 +38,17 @@ app.use(session({
   }
 }));
 
+const dbReady = initDb();
+app.use(async (req, res, next) => {
+  try {
+    await dbReady;
+    next();
+  } catch (err) {
+    console.error('DB initialization pending or failed:', err);
+    res.status(503).json({ error: 'Server is not ready. Please try again shortly.' });
+  }
+});
+
 async function initDb() {
   try {
     const client = await pool.connect();
@@ -185,12 +196,14 @@ async function processMaturity() {
   } catch (e) { console.error('Maturity Error:', e); }
 }
 
-initDb().then(() => {
-  app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
-}).catch((err) => {
-  console.error('Initialization failed:', err);
-  process.exit(1);
-});
+if (!process.env.VERCEL && require.main === module) {
+  dbReady.then(() => {
+    app.listen(PORT, () => console.log(`CashiePie running on port ${PORT}`));
+  }).catch((err) => {
+    console.error('Initialization failed:', err);
+    process.exit(1);
+  });
+}
 
 app.get('/', async (req, res) => {
   if (req.session.userId) res.send(dashboardTemplate(req.session.role));
