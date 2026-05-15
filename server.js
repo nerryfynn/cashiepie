@@ -57,8 +57,8 @@ async function initDb() {
           referred_by VARCHAR(50),
           status VARCHAR(50) DEFAULT 'Active',
           bank_name VARCHAR(255),
-          account_number VARCHAR(255),
           account_name VARCHAR(255),
+          account_number VARCHAR(255),
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
       `);
@@ -231,8 +231,8 @@ app.post('/api/withdraw', checkAuth, async (req, res) => {
 });
 
 app.post('/api/user/bank/update', checkAuth, async (req, res) => {
-  const { bank_name, account_number, account_name } = req.body;
-  await pool.query('UPDATE users SET bank_name = $1, account_number = $2, account_name = $3 WHERE id = $4', [bank_name, account_number, account_name, req.session.userId]);
+  const { bank_name, account_name, account_number } = req.body;
+  await pool.query('UPDATE users SET bank_name = $1, account_name = $2, account_number = $3 WHERE id = $4', [bank_name, account_name, account_number, req.session.userId]);
   res.json({ success: true, message: 'Bank details updated' });
 });
 
@@ -260,7 +260,6 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
   const { rows: txs } = await pool.query('SELECT * FROM transactions WHERE id = $1', [txId]);
   if (txs.length === 0 || txs[0].status !== 'Pending') return res.json({ success: false, message: 'Already processed' });
   const tx = txs[0];
-
   if (action === 'Approved') {
     if (tx.type === 'Deposit') {
       await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
@@ -272,9 +271,7 @@ app.post('/api/admin/tx/process', checkAdmin, async (req, res) => {
       }
     }
   } else if (action === 'Rejected') {
-    if (tx.type === 'Withdrawal') {
-      await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
-    }
+    if (tx.type === 'Withdrawal') await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [tx.amount, tx.user_id]);
   }
   await pool.query('UPDATE transactions SET status = $1 WHERE id = $2', [action, txId]);
   res.json({ success: true });
@@ -323,8 +320,8 @@ app.get('/api/user/data', checkAuth, async (req, res) => {
 
 app.get('/api/admin/data', checkAdmin, async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
-  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user'");
-  const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName", u.bank_name, u.account_number, u.account_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
+  const { rows: users } = await pool.query("SELECT * FROM users WHERE role = 'user' ORDER BY created_at DESC");
+  const { rows: pending } = await pool.query('SELECT t.*, u.name as "userName", u.bank_name, u.account_name, u.account_number FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = \'Pending\'');
   const { rows: history } = await pool.query('SELECT t.*, u.name as "userName" FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT $1', [limit]);
   const { rows: tickets } = await pool.query('SELECT tk.*, u.name as "userName" FROM tickets tk JOIN users u ON tk.user_id = u.id ORDER BY tk.created_at DESC');
   const { rows: settings } = await pool.query('SELECT * FROM settings');

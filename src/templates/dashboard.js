@@ -11,10 +11,11 @@ function dashboardTemplate(role) {
     <style>
       ${baseStyles}
       .main-container { max-width: 800px; margin: 0 auto; padding: 2rem; padding-bottom: 140px; }
-      .hero-stat-card { padding: 2.5rem; margin-bottom: 2rem; border: none; background: var(--primary-grad); color: white; box-shadow: 0 25px 50px rgba(230, 126, 34, 0.25); border-radius: 35px; position: relative; overflow: hidden; }
+      .hero-stat-card { padding: 2.5rem; margin-bottom: 2rem; border: none; background: var(--primary-grad); color: white; box-shadow: 0 15px 35px rgba(230, 126, 34, 0.2); border-radius: 35px; position: relative; overflow: hidden; z-index: 10; }
       .hero-stat-card h4 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.9; font-weight: 800; margin-bottom: 0.5rem; }
       .hero-stat-card .val { font-size: clamp(1.4rem, 8vw, 3rem); font-weight: 900; letter-spacing: -1.5px; white-space: nowrap; overflow: hidden; }
       
+      .sub-stat-card { position: relative; z-index: 5; }
       .sub-stat-card .val { font-size: clamp(0.9rem, 5vw, 1.8rem); font-weight: 900; color: var(--dark); margin-top: 5px; white-space: nowrap; overflow: hidden; }
       
       .pill { padding: 8px 16px; border-radius: 100px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -92,7 +93,7 @@ function dashboardTemplate(role) {
 
         <div class="glass-card" style="margin-bottom:2.5rem; overflow:hidden;">
           <h3 class="section-title" style="padding:2rem 2rem 0.5rem 2rem;"><i class="fas fa-users"></i> Investor Base</h3>
-          <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>Investor</th><th>Balance</th><th>Principal</th><th>Action</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="cpie-table"><thead><tr><th>Investor</th><th>Bank Details</th><th>Balance</th><th>Principal</th><th>Action</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
         </div>
 
         <div class="glass-card" style="margin-bottom:2.5rem; overflow:hidden;">
@@ -111,7 +112,7 @@ function dashboardTemplate(role) {
           <div class="val" id="userBalance">$0.00</div>
         </div>
 
-        <div class="sub-stat-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-bottom:2rem;">
+        <div class="sub-stat-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-bottom:2.5rem;">
           <div class="glass-card sub-stat-card" style="padding:1.5rem; text-align:center; border-radius:24px;">
             <h4 style="font-size:0.7rem; text-transform:uppercase; opacity:0.6; font-weight:800;">Working Capital</h4>
             <div class="val" id="userInv">$0</div>
@@ -122,7 +123,7 @@ function dashboardTemplate(role) {
           </div>
         </div>
 
-        <div class="action-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin:2rem 0;">
+        <div class="action-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin:2.5rem 0;">
           <div class="action-btn" onclick="openPanel('depositPanel')"><i class="fas fa-plus"></i><span>Add Funds</span></div>
           <div class="action-btn" onclick="openPanel('withdrawPanel')"><i class="fas fa-arrow-up"></i><span>Withdraw</span></div>
         </div>
@@ -235,15 +236,15 @@ function dashboardTemplate(role) {
       }
 
       function openBankEdit() {
-        showPrompt("Bank Details", "Enter your Bank Name:", "Bank Name", (bank) => {
+        showPrompt("Bank Name", "Enter your Bank Name:", "e.g. Chase Bank", (bank) => {
           if(!bank) return;
-          showPrompt("Account Holder", "Enter Account Name:", "Account Name", (accName) => {
-            if(!accName) return;
-            showPrompt("Account Number", "Enter Account Number:", "Number", async (accNum) => {
-              if(!accNum) return;
+          showPrompt("Account Number", "Enter your Account Number:", "1234567890", (accNum) => {
+            if(!accNum) return;
+            showPrompt("Account Name", "Enter Account Holder Name:", "Full Name", async (accName) => {
+              if(!accName) return;
               const res = await fetch('/api/user/bank/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bank_name:bank, account_name:accName, account_number:accNum }) });
               const data = await res.json();
-              if(data.success) { showSnackbar("Bank updated", "success"); loadData(); }
+              if(data.success) { showSnackbar("Bank Details Saved", "success"); loadData(); }
             });
           });
         });
@@ -352,7 +353,8 @@ function dashboardTemplate(role) {
             \`;
             const pendingTbody = document.getElementById('pendingTxs'); pendingTbody.innerHTML = '';
             data.pending.forEach(tx => {
-              pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small></td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><div style="display:flex; gap:8px;"><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem;" onclick="processRequest('\${tx.id}', 'Approved')">OK</button><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem; background:#ef4444;" onclick="processRequest('\${tx.id}', 'Rejected')">REJ</button></div></td></tr>\`;
+              const bankInfo = tx.type === 'Withdrawal' ? \`<div style="margin-top:8px; padding:10px; background:#f1f5f9; border-radius:12px; font-size:0.7rem; border-left:4px solid var(--primary);"><strong>PAYOUT TO:</strong><br>\${tx.bank_name || 'No Bank'}<br>Acc: \${tx.account_number || '-'}<br>Name: \${tx.account_name || '-'}</div>\` : '';
+              pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small>\${bankInfo}</td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><div style="display:flex; gap:8px;"><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem;" onclick="processRequest('\${tx.id}', 'Approved')">OK</button><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem; background:#ef4444;" onclick="processRequest('\${tx.id}', 'Rejected')">REJ</button></div></td></tr>\`;
             });
             const settingsDiv = document.getElementById('adminSettings'); settingsDiv.innerHTML = '';
             data.settings.forEach(s => {
@@ -364,7 +366,8 @@ function dashboardTemplate(role) {
             });
             const userTbody = document.getElementById('adminUserList'); userTbody.innerHTML = '';
             data.users.forEach(u => {
-              userTbody.innerHTML += \`<tr><td><strong>\${u.name}</strong><br><small>\${u.username}</small></td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem;"><i class="fas fa-edit"></i></button></td></tr>\`;
+              const bankDetails = u.bank_name ? \`<small style="display:block; opacity:0.6; font-size:0.65rem;">\${u.bank_name}<br>\${u.account_number}</small>\` : '<small style="opacity:0.3;">No Bank</small>';
+              userTbody.innerHTML += \`<tr><td><strong>\${u.name}</strong><br><small>\${u.username}</small></td><td>\${bankDetails}</td><td>$\${parseFloat(u.balance).toLocaleString()}</td><td>$\${parseFloat(u.investment).toLocaleString()}</td><td><button onclick="openEditUser('\${u.id}','\${u.name}',\${u.balance},\${u.profit},\${u.investment},'\${u.status}')" style="border:none; background:none; color:var(--primary); font-size:1.2rem;"><i class="fas fa-edit"></i></button></td></tr>\`;
             });
             const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
             data.globalHistory.forEach(tx => {
