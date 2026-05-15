@@ -16,8 +16,18 @@ const wrapAsync = (fn) => (req, res, next) => {
 
 const originalGet = app.get.bind(app);
 const originalPost = app.post.bind(app);
-app.get = (path, handler) => originalGet(path, wrapAsync(handler));
-app.post = (path, handler) => originalPost(path, wrapAsync(handler));
+app.get = function(path, ...handlers) {
+  if (handlers.length === 0) return originalGet(path);
+  const wrap = (h) => typeof h === 'function' ? wrapAsync(h) : h;
+  const wrapped = handlers.map(h => Array.isArray(h) ? h.map(wrap) : wrap(h));
+  return originalGet(path, ...wrapped);
+};
+app.post = function(path, ...handlers) {
+  if (handlers.length === 0) return originalPost(path);
+  const wrap = (h) => typeof h === 'function' ? wrapAsync(h) : h;
+  const wrapped = handlers.map(h => Array.isArray(h) ? h.map(wrap) : wrap(h));
+  return originalPost(path, ...wrapped);
+};
 
 const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL_POSTGRES_URL;
 if (!dbUrl) {
