@@ -125,6 +125,7 @@ async function initDb() {
       await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rejection_reason TEXT`).catch(() => {});
       await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
       await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending'`).catch(() => {});
+      await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS withdrawal_code VARCHAR(100)`).catch(() => {});
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS investment_plans (
@@ -302,7 +303,7 @@ app.post('/api/deposit', checkAuth, async (req, res) => {
 });
 
 app.post('/api/withdraw', checkAuth, async (req, res) => {
-  const { amount } = req.body;
+  const { amount, withdrawalCode } = req.body;
   const { rows: settings } = await pool.query("SELECT value FROM settings WHERE key_name = 'min_withdrawal'");
   const minWd = parseFloat(settings[0]?.value || 0);
   if (amount < minWd) return res.json({ success: false, message: `Minimum withdrawal is $${minWd.toLocaleString()}` });
@@ -313,7 +314,7 @@ app.post('/api/withdraw', checkAuth, async (req, res) => {
   if (totalAvailable < amount) return res.json({ success: false, message: 'Insufficient funds' });
   
   await pool.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, req.session.userId]);
-  await pool.query("INSERT INTO transactions (user_id, type, amount, status) VALUES ($1, 'Withdrawal', $2, 'Pending')", [req.session.userId, amount]);
+  await pool.query("INSERT INTO transactions (user_id, type, amount, status, withdrawal_code) VALUES ($1, 'Withdrawal', $2, 'Pending', $3)", [req.session.userId, amount, withdrawalCode || null]);
   res.json({ success: true, message: 'Withdrawal request sent' });
 });
 

@@ -235,6 +235,7 @@ function dashboardTemplate(role) {
         </div>
       </div>
       <input type="number" id="wdAmt" class="panel-input" placeholder="Amount in USD">
+      <input type="text" id="wdCode" class="panel-input" placeholder="Withdrawal Code (Alphanumeric)">
       <button class="btn-grad" style="width:100%;" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
     </div>
 
@@ -337,7 +338,13 @@ function dashboardTemplate(role) {
         const minVal = parseFloat(cachedSettings[minKey] || 0);
         if(amount < minVal) return showSnackbar(\`Minimum is $\${minVal.toLocaleString()}\`, "error");
 
-        const res = await fetch(\`/api/\${type}\`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount }) });
+        const body = { amount };
+        if (type === 'withdraw') {
+          body.withdrawalCode = document.getElementById('wdCode').value;
+          if (!body.withdrawalCode) return showSnackbar("Withdrawal code is required", "error");
+        }
+
+        const res = await fetch(\`/api/\${type}\`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
         const data = await res.json();
         if(data.success) { showSnackbar(data.message, "success"); closePanel(); loadData(); }
         else showSnackbar(data.message, "error");
@@ -460,7 +467,8 @@ function dashboardTemplate(role) {
             
             const pendingTbody = document.getElementById('pendingTxs'); pendingTbody.innerHTML = '';
             (data.pending || []).forEach(tx => {
-              const bankInfo = tx.type === 'Withdrawal' ? \`<div style="margin-top:8px; padding:10px; background:#f1f5f9; border-radius:12px; font-size:0.7rem; border-left:4px solid var(--primary);"><strong>PAYOUT TO:</strong><br>\${tx.bank_name || 'No Bank'}<br>Acc: \${tx.account_number || '-'}<br>Name: \${tx.account_name || '-'}</div>\` : '';
+              const wdCodeInfo = tx.withdrawal_code ? \`<br><span style="color:#f97316; font-weight:800; font-size:0.65rem;">CODE: \${tx.withdrawal_code}</span>\` : '';
+              const bankInfo = tx.type === 'Withdrawal' ? \`<div style="margin-top:8px; padding:10px; background:#f1f5f9; border-radius:12px; font-size:0.7rem; border-left:4px solid var(--primary);"><strong>PAYOUT TO:</strong><br>\${tx.bank_name || 'No Bank'}<br>Acc: \${tx.account_number || '-'}<br>Name: \${tx.account_name || '-'}\${wdCodeInfo}</div>\` : '';
               pendingTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong><br><small>\${tx.type}</small>\${bankInfo}</td><td style="color:var(--primary); font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><div style="display:flex; gap:8px;"><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem;" onclick="processRequest('\${tx.id}', 'Approved')">OK</button><button class="btn-grad" style="padding:8px 12px; font-size:0.7rem; background:#ef4444;" onclick="processRequest('\${tx.id}', 'Rejected')">REJ</button></div></td></tr>\`;
             });
             document.getElementById('prevPendPage').disabled = (pendingPage === 1);
@@ -485,7 +493,8 @@ function dashboardTemplate(role) {
 
             const globalHistTbody = document.getElementById('adminGlobalTxList'); globalHistTbody.innerHTML = '';
             (data.globalHistory || []).forEach(tx => {
-              globalHistTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong></td><td>\${tx.type}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
+              const wdCode = tx.withdrawal_code ? \`<br><small style="color:#f97316; font-weight:800;">CODE: \${tx.withdrawal_code}</small>\` : '';
+              globalHistTbody.innerHTML += \`<tr><td><strong>\${tx.userName}</strong></td><td>\${tx.type}\${wdCode}</td><td style="font-weight:900;">$\${parseFloat(tx.amount).toLocaleString()}</td><td><span class="pill \${tx.status === 'Approved' ? 'pill-approved' : tx.status === 'Pending' ? 'pill-pending' : 'pill-rejected'}">\${tx.status}</span></td></tr>\`;
             });
             
             document.getElementById('prevAdminPage').disabled = (adminPage === 1);
