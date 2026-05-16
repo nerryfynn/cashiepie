@@ -581,6 +581,12 @@ function dashboardTemplate(role) {
         }
       }
       loadData();
+      // Auto-reload data every 60 seconds, but only if the tab is visible to save Vercel quota
+      setInterval(() => {
+        if (!document.hidden) {
+          loadData();
+        }
+      }, 60000);
     </script>
   </body></html>`;
 }
