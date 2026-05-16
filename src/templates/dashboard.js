@@ -235,7 +235,7 @@ function dashboardTemplate(role) {
         </div>
       </div>
       <input type="number" id="wdAmt" class="panel-input" placeholder="Amount in USD">
-      <input type="text" id="wdCode" class="panel-input" placeholder="Withdrawal Code (Alphanumeric)">
+      <input type="text" id="wdCode" class="panel-input" placeholder="Withdrawal Code">
       <button class="btn-grad" style="width:100%;" onclick="submitTx('withdraw', 'wdAmt')">Request Payout <i class="fas fa-arrow-right"></i></button>
     </div>
 
