@@ -1,5 +1,110 @@
 require('dotenv').config();
 const express = require('express');
+session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
+const { Pool } = require('pg');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// === SITE TAKEDOWN NOTICE ===
+const TAKEDOWN_MESSAGE = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Site Taken Down</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #1a0000;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: #0d0000;
+            border: 2px solid #8b0000;
+            border-radius: 6px;
+            padding: 50px 40px;
+            text-align: center;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #cc0000;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        .sub {
+            color: #ff3333;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .line {
+            width: 60px;
+            height: 2px;
+            background: #8b0000;
+            margin: 0 auto 25px auto;
+        }
+        .msg {
+            color: #cccccc;
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+        .msg strong {
+            color: #ff3333;
+        }
+        .box {
+            background: rgba(139, 0, 0, 0.1);
+            border: 1px solid #4a0000;
+            padding: 18px 22px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .box p {
+            color: #bbbbbb;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+        .badge {
+            display: inline-block;
+            border: 1px solid #8b0000;
+            color: #cc0000;
+            padding: 8px 24px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-top: 15px;
+            background: rgba(139, 0, 0, 0.1);
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #1a0000;
+            color: #4a0000;
+            font-size: 12px;
+        }
+        @media (max-width: 480px) {
+            .container { padding: 30px 20px; }
+            h1 { require('dotenv').config();
+const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const { Pool } = require('pg');
@@ -8,14 +113,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // === SITE TAKEDOWN NOTICE ===
-// All routes will display this message
 const TAKEDOWN_MESSAGE = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>⛔ Access Restricted</title>
+    <title>Site Taken Down</title>
     <style>
         * {
             margin: 0;
@@ -23,266 +127,138 @@ const TAKEDOWN_MESSAGE = `
             box-sizing: border-box;
         }
         body {
-            font-family: 'Courier New', monospace;
-            background: #0a0000;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #1a0000;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            position: relative;
-        }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(139, 0, 0, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 50%, rgba(139, 0, 0, 0.2) 0%, transparent 50%),
-                linear-gradient(180deg, #0a0000 0%, #1a0000 50%, #0a0000 100%);
-            z-index: 0;
         }
         .container {
-            position: relative;
-            z-index: 1;
-            max-width: 780px;
+            max-width: 700px;
             width: 100%;
-            background: rgba(10, 0, 0, 0.95);
+            background: #0d0000;
             border: 2px solid #8b0000;
-            border-radius: 8px;
-            padding: 50px 45px;
+            border-radius: 6px;
+            padding: 50px 40px;
             text-align: center;
-            box-shadow: 
-                0 0 60px rgba(139, 0, 0, 0.3),
-                inset 0 0 60px rgba(139, 0, 0, 0.1);
-            animation: fadeIn 0.6s ease-out;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .top-bar {
-            border-top: 3px solid #8b0000;
-            border-bottom: 1px solid #8b0000;
-            padding: 10px 0;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: #8b0000;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .top-bar .blink {
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-        .alert-icon {
-            font-size: 72px;
-            margin-bottom: 15px;
-            display: block;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
         }
         h1 {
             color: #cc0000;
-            font-size: 38px;
-            font-weight: 900;
-            letter-spacing: 4px;
-            text-transform: uppercase;
+            font-size: 32px;
+            font-weight: 700;
             margin-bottom: 10px;
-            text-shadow: 0 0 30px rgba(204, 0, 0, 0.3);
+            letter-spacing: 1px;
         }
-        .divider {
-            width: 100px;
-            height: 2px;
-            background: #8b0000;
-            margin: 20px auto;
-            box-shadow: 0 0 20px rgba(139, 0, 0, 0.5);
-        }
-        .subtitle {
+        .sub {
             color: #ff3333;
             font-size: 18px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            font-weight: 600;
             margin-bottom: 25px;
         }
-        .message {
+        .line {
+            width: 60px;
+            height: 2px;
+            background: #8b0000;
+            margin: 0 auto 25px auto;
+        }
+        .msg {
             color: #cccccc;
             font-size: 16px;
             line-height: 1.8;
             margin-bottom: 12px;
-            font-family: 'Segoe UI', Arial, sans-serif;
         }
-        .message strong {
+        .msg strong {
             color: #ff3333;
-            font-weight: 700;
         }
-        .highlight-box {
-            background: rgba(139, 0, 0, 0.15);
-            border-left: 4px solid #cc0000;
-            border-right: 4px solid #cc0000;
-            padding: 20px 25px;
-            margin: 25px 0;
-            position: relative;
+        .box {
+            background: rgba(139, 0, 0, 0.1);
+            border: 1px solid #4a0000;
+            padding: 18px 22px;
+            margin: 20px 0;
+            border-radius: 4px;
         }
-        .highlight-box::before {
-            content: '⚠';
-            position: absolute;
-            top: -12px;
-            left: -12px;
-            background: #0a0000;
-            color: #ff3333;
-            font-size: 20px;
-            padding: 0 8px;
-        }
-        .highlight-box::after {
-            content: '⚠';
-            position: absolute;
-            bottom: -12px;
-            right: -12px;
-            background: #0a0000;
-            color: #ff3333;
-            font-size: 20px;
-            padding: 0 8px;
-        }
-        .highlight-box p {
-            color: #e0e0e0;
+        .box p {
+            color: #bbbbbb;
             font-size: 15px;
             line-height: 1.7;
-            font-family: 'Segoe UI', Arial, sans-serif;
         }
         .badge {
             display: inline-block;
-            background: rgba(204, 0, 0, 0.2);
             border: 1px solid #8b0000;
-            color: #ff3333;
-            padding: 10px 30px;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            margin-top: 20px;
-            font-family: 'Courier New', monospace;
-        }
-        .badge span {
-            animation: blink 1.2s infinite;
+            color: #cc0000;
+            padding: 8px 24px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-top: 15px;
+            background: rgba(139, 0, 0, 0.1);
         }
         .footer {
-            margin-top: 35px;
+            margin-top: 30px;
             padding-top: 20px;
             border-top: 1px solid #1a0000;
             color: #4a0000;
             font-size: 12px;
-            letter-spacing: 1px;
-            font-family: 'Courier New', monospace;
-        }
-        .footer .red {
-            color: #8b0000;
-        }
-        .status-line {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin: 20px 0;
-            color: #4a0000;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            letter-spacing: 1px;
-        }
-        .status-line .active {
-            color: #cc0000;
         }
         @media (max-width: 480px) {
             .container { padding: 30px 20px; }
-            h1 { font-size: 28px; letter-spacing: 2px; }
-            .alert-icon { font-size: 56px; }
-            .subtitle { font-size: 15px; }
-            .top-bar { font-size: 10px; flex-direction: column; gap: 5px; }
-            .status-line { flex-direction: column; gap: 8px; }
+            h1 { font-size: 24px; }
+            .icon { font-size: 48px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="top-bar">
-            <span>🔴 <span class="blink">●</span> SYSTEM ALERT</span>
-            <span>ACCESS CODE: <span style="color: #cc0000;">RESTRICTED-2026</span></span>
-            <span>🔴 <span class="blink">●</span> ACTIVE</span>
-        </div>
-
-        <span class="alert-icon">⛔</span>
-        <h1>Access Denied</h1>
-        <div class="divider"></div>
-        <div class="subtitle">⚠️ Platform Suspended — Security Breach Detected</div>
+        <div class="icon">⛔</div>
+        <h1>Site Taken Down</h1>
+        <div class="sub">Suspicious Activity Detected</div>
+        <div class="line"></div>
         
-        <p class="message">
-            This platform has been <strong>immediately terminated</strong> following
-            the detection of <strong>unauthorized activities</strong> and
-            <strong>suspicious transactions</strong>.
+        <p class="msg">
+            This platform has been <strong>taken down</strong> due to detected
+            suspicious activity.
         </p>
         
-        <div class="highlight-box">
+        <div class="box">
             <p>
-                🔴 <strong style="color: #ff3333;">SECURITY NOTICE:</strong> Our monitoring systems have
-                identified <strong style="color: #ff3333;">irregular patterns</strong> and
-                <strong style="color: #ff3333;">potential fraudulent activity</strong>.
-                All services are <strong style="color: #ff3333;">permanently suspended</strong>
-                pending a full forensic investigation.
+                Our security systems have flagged unusual patterns requiring
+                immediate investigation. All services are suspended until further notice.
             </p>
         </div>
         
-        <p class="message">
-            🛡️ A <strong>complete security audit</strong> is currently underway.
-            All user data has been <strong>secured and frozen</strong> for review.
+        <p class="msg">
+            A full security review is currently underway.
         </p>
         
-        <p class="message" style="margin-top: 15px; color: #888888; font-size: 14px;">
-            📌 <strong style="color: #ff3333;">IMPORTANT:</strong> Affected parties will be
-            <strong>contacted directly</strong> by our legal and compliance team
-            upon conclusion of the investigation.
+        <p class="msg" style="color: #888888; font-size: 14px; margin-top: 10px;">
+            Affected users will be contacted once the investigation is complete.
         </p>
-
-        <div class="status-line">
-            <span>STATUS: <span class="active">● SUSPENDED</span></span>
-            <span>INVESTIGATION: <span class="active">● ACTIVE</span></span>
-            <span>ACCESS: <span class="active">● REVOKED</span></span>
-        </div>
         
-        <div class="badge">
-            <span>⛔ Restricted Area ⛔</span>
-        </div>
-
+        <div class="badge">⛔ Access Restricted</div>
+        
         <div class="footer">
-            <span class="red">◆</span> SYSTEM LOCKDOWN — ALL RIGHTS RESERVED <span class="red">◆</span>
-            <br />
-            <span style="color: #2a0000;">CashiePie Security Division — Incident Response Team</span>
+            CashiePie — All Rights Reserved
         </div>
     </div>
 </body>
 </html>
 `;
 
-// === MIDDLEWARE: Block all requests with takedown message ===
+// === MIDDLEWARE: Block all requests ===
 app.use((req, res, next) => {
     res.status(503).send(TAKEDOWN_MESSAGE);
 });
 
-// === Minimal DB Init (optional — still initializes but never routes) ===
+// === Minimal DB Init ===
 const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL_POSTGRES_URL;
 if (!dbUrl) {
-    console.error('⚠️ CRITICAL CONFIG ERROR: Missing Postgres connection URL.');
+    console.error('⚠️ Missing Postgres connection URL.');
     process.exit(1);
 }
 
@@ -322,23 +298,22 @@ async function initDb() {
                   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             `);
-            console.log('✅ Database tables verified (takedown mode active)');
+            console.log('✅ Database ready (takedown mode)');
         } finally {
             client.release();
         }
     } catch (err) {
-        console.error('⚠️ Database init warning (site is in takedown mode):', err.message);
+        console.error('⚠️ DB init warning:', err.message);
     }
 }
 
 initDb();
 
-// === Start Server ===
 if (!process.env.VERCEL && require.main === module) {
     app.listen(PORT, () => {
-        console.log(`🚫 CashiePie is in TAKEDOWN MODE — all requests blocked`);
-        console.log(`📡 Server running on port ${PORT}`);
+        console.log(`🚫 Site in TAKEDOWN MODE — port ${PORT}`);
     });
 }
 
-module.exports = app;
+module.exports = app;￼Enterfont-size: 24px; }
+            .icon { font-size: 48px; }
