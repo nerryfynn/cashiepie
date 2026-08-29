@@ -64,7 +64,6 @@ app.use((req, res) => {
         <p><strong>Suspicious activity noticed.</strong></p>
         <p>The site has been taken down for security review.</p>
         <p style="font-size:14px; color:#888;">Please check back later.</p>
-        <div class="footer">CashiePie</div>
     </div>
 </body>
 </html>
