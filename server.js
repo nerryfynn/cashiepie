@@ -12,7 +12,7 @@ app.use((req, res) => {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Site Taken Down</title>
+    <title>Site Temporarily Unavailable</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -61,16 +61,16 @@ app.use((req, res) => {
     <div class="container">
         <h1>Site Taken Down</h1>
         <div class="line"></div>
-        <p><strong>Suspicious activity noticed.</strong></p>
-        <p>The site has been taken down for security review.</p>
-        <p style="font-size:14px; color:#888;">Please check back later.</p>
+        <p><strong>Suspicious activity has been detected.</strong></p>
+        <p>This site has been taken down pending a full security review.</p>
+        <p style="font-size:14px; color:#888;">Please check back at a later time.</p>
     </div>
 </body>
 </html>
     `);
 });
 
-// === Minimal DB Init (so it doesn't crash) ===
+// === Minimal DB Init (prevents crashes) ===
 const { Pool } = require('pg');
 const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL_POSTGRES_URL;
 
@@ -85,7 +85,7 @@ if (dbUrl) {
 
 if (!process.env.VERCEL && require.main === module) {
     app.listen(PORT, () => {
-        console.log(`Site in takedown mode on port ${PORT}`);
+        console.log(`Site is in takedown mode on port ${PORT}`);
     });
 }
 
